@@ -1,0 +1,89 @@
+digit -> [0,9]
+
+letter -> [a,z] | [A,Z]
+
+num -> digit num
+	| digit
+
+pitch_letter -> [a,g] | [A,G]
+
+accidental -> # | b | \0
+
+octave -> digit | \0
+
+real -> num
+	| num .
+	| num . num
+	| . num
+	| pi
+	| real
+
+pitch -> pitch_letter accidental octave
+	| real
+	| _
+
+duration -> num / num
+	| real
+
+note -> pitch : duration
+
+notes -> note , notes
+	| note
+
+alpha_num_us -> letter | digit | _
+
+id_chars -> alpha_num_us id_chars
+	| alpha_num_us
+	| \0
+
+id -> letter id_chars
+	| _ id_chars
+
+track_declaration -> id : { notes }
+	| { notes }
+	| id : duration : { notes }
+	| duration : { notes }
+
+keyword -> track | env | start | end | length
+
+global -> t | time | sample_rate
+
+term -> real
+	| global
+	| id
+	| $ num . id
+	| ( expression )
+
+exp_un -> - term
+	| sin term
+	| cos term
+	| floor term
+	| ceil term
+	| abs term
+	| term
+
+exp_pow -> exp_un ^ exp_pow
+	| exp_un
+
+exp_mul -> exp_pow * exp_mul
+	| exp_pow / exp_mul
+	| exp_pow % exp_mul
+	| exp_pow
+
+exp_add -> exp_mul + exp_add
+	| exp_mul - exp_add
+	| exp_mul
+
+expression -> exp_add
+
+expression_declaration -> id : expression
+	| expression
+
+chain_link -> track_declaration
+	| id
+	| expression
+
+chain -> chain_link -> chain
+	| chain_link
+
+chain_declaration -> id :: chain

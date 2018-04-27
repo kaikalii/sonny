@@ -1,0 +1,6 @@
+[package]
+name = "dal"
+version = "0.1.0"
+authors = ["Kai Schmidt <kaikaliischmidt@gmail.com>"]
+
+[dependencies]
