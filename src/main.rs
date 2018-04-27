@@ -1,18 +1,17 @@
 mod lexer;
 
 use std::env;
-use std::fs::File;
 
 use lexer::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() >= 2 {
-        let mut file = File::open(&args[1]).expect(&format!("Unable to open file: {}", args[1]));
+        let mut lexer = Lexer::new(&args[1]);
         loop {
-            let token = lexer(&mut file);
+            let token = lexer.lex();
             use TokenType::*;
-            match token.t {
+            match token.0 {
                 Done => break,
                 _ => println!("{:?}", token),
             }

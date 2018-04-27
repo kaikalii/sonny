@@ -1,9 +1,7 @@
+use std::fs::File;
 use std::io::Read;
 
 static KEYWORDS: &[&'static str] = &["pi", "start", "end", "length", "time"];
-static mut LINENO: u8 = 1;
-static mut WAS_PUT_BACK: bool = false;
-static mut C: char = 'x';
 
 #[derive(Debug, Clone)]
 pub enum TokenType {
@@ -21,153 +19,156 @@ pub enum TokenType {
 use self::TokenType::*;
 
 #[derive(Debug, Clone)]
-pub struct Token {
-    pub t: TokenType,
-    pub s: String,
+pub struct Token(pub TokenType, pub String);
+
+#[derive(Debug)]
+pub struct Lexer {
+    lineno: usize,
+    was_put_back: bool,
+    c: [u8; 1],
+    file: File,
 }
 
-impl Token {
-    pub fn new(t: TokenType, s: String) -> Token {
-        Token { t, s }
+impl Lexer {
+    pub fn new(file: &str) -> Lexer {
+        Lexer {
+            lineno: 1,
+            was_put_back: false,
+            c: [0],
+            file: File::open(file).expect(&format!("Unable to open file \"{}\"", file)),
+        }
     }
-}
-
-pub fn lexer(reader: &mut Read) -> Token {
-    // Define local functions for reading characters from the reader
-    let mut ch = [0u8];
-    let mut get_char = || -> Option<char> {
-        unsafe {
-            if WAS_PUT_BACK {
-                WAS_PUT_BACK = false;
-                Some(C)
+    fn get_char(&mut self) -> Option<char> {
+        if self.was_put_back {
+            self.was_put_back = false;
+            Some(self.c[0] as char)
+        } else {
+            if self.file.read_exact(&mut self.c).is_ok() {
+                Some(self.c[0] as char)
             } else {
-                if reader.read_exact(&mut ch).is_ok() {
-                    C = ch[0] as char;
-                    Some(C)
-                } else {
-                    None
-                }
+                None
             }
         }
-    };
-    let put_back = || unsafe { WAS_PUT_BACK = true };
+    }
+    fn put_back(&mut self) {
+        self.was_put_back = true;
+    }
+    pub fn lex(&mut self) -> Token {
+        // Begin reading a token
+        while let Some(c) = self.get_char() {
+            let mut token = String::new();
 
-    // Begin reading a token
-    while let Some(c) = get_char() {
-        let mut token = String::new();
-
-        // Check for tokens that start with alpha or us
-        if c.is_alphabetic() || c == '_' {
-            token.push(c);
-            // Check for ids, keywords, and notes
-            while let Some(c) = get_char() {
-                if c.is_alphanumeric() || c == '_' {
-                    token.push(c);
-                    // Check for keywords
-                    if KEYWORDS.iter().find(|&k| k == &token).is_some() {
-                        return Token::new(Keyword, token);
-                    }
-                } else {
-                    put_back();
-                    // Check for notes
-                    let bytes: Vec<u8> = token.chars().map(|cc| cc as u8).collect();
-                    let mut i = 0;
-                    if bytes[i] >= 'A' as u8 && bytes[i] <= 'F' as u8 {
-                        if bytes.len() == 1 {
-                            return Token::new(Note, token);
-                        } else {
-                            i += 1;
-                            if bytes[i] == 'b' as u8 || bytes[i] == '#' as u8 {
-                                if bytes.len() == 2 {
-                                    return Token::new(Note, token);
-                                }
+            // Check for tokens that start with alpha or us
+            if c.is_alphabetic() || c == '_' {
+                token.push(c);
+                // Check for ids, keywords, and notes
+                while let Some(c) = self.get_char() {
+                    if c.is_alphanumeric() || c == '_' {
+                        token.push(c);
+                        // Check for keywords
+                        if KEYWORDS.iter().find(|&k| k == &token).is_some() {
+                            return Token(Keyword, token);
+                        }
+                    } else {
+                        self.put_back();
+                        // Check for notes
+                        let bytes: Vec<u8> = token.chars().map(|cc| cc as u8).collect();
+                        let mut i = 0;
+                        if bytes[i] >= 'A' as u8 && bytes[i] <= 'F' as u8 {
+                            if bytes.len() == 1 {
+                                return Token(Note, token);
+                            } else {
                                 i += 1;
-                            }
-                            while i < bytes.len() {
-                                if !(bytes[i] as char).is_digit(10) {
-                                    return Token::new(Id, token);
+                                if bytes[i] == 'b' as u8 || bytes[i] == '#' as u8 {
+                                    if bytes.len() == 2 {
+                                        return Token(Note, token);
+                                    }
+                                    i += 1;
                                 }
-                                i += 1;
+                                while i < bytes.len() {
+                                    if !(bytes[i] as char).is_digit(10) {
+                                        return Token(Id, token);
+                                    }
+                                    i += 1;
+                                }
+                                return Token(Note, token);
                             }
-                            return Token::new(Note, token);
                         }
-                    }
 
-                    return Token::new(Id, token);
-                }
-            }
-        }
-        // Check for valid num tokens
-        else if c.is_digit(10) {
-            token.push(c);
-            while let Some(c) = get_char() {
-                if c.is_digit(10) {
-                    token.push(c);
-                } else {
-                    put_back();
-                    return Token::new(Num, token);
-                }
-            }
-        }
-        // Check for newlines
-        else if c.is_whitespace() {
-            if c == '\n' {
-                unsafe {
-                    LINENO += 1;
-                }
-            }
-        }
-        // Check for operators
-        else {
-            token.push(c);
-            match c {
-                '(' | ')' | '{' | '}' | ',' => return Token::new(Delimeter, token),
-                ':' => {
-                    if let Some(c) = get_char() {
-                        if c == ':' {
-                            token.push(c);
-                        } else {
-                            put_back();
-                        }
-                        return Token::new(Delimeter, token);
+                        return Token(Id, token);
                     }
                 }
-                '$' | '.' => return Token::new(Misc, token),
-                '+' | '*' | '%' | '^' => return Token::new(Operator, token),
-                '-' => {
-                    if let Some(c) = get_char() {
-                        if c == '>' {
-                            token.push(c);
-                            return Token::new(Delimeter, token);
-                        } else {
-                            put_back();
-                            return Token::new(Operator, token);
-                        }
+            }
+            // Check for valid num tokens
+            else if c.is_digit(10) {
+                token.push(c);
+                while let Some(c) = self.get_char() {
+                    if c.is_digit(10) {
+                        token.push(c);
+                    } else {
+                        self.put_back();
+                        return Token(Num, token);
                     }
                 }
-                '/' => {
-                    if let Some(c) = get_char() {
-                        match c {
-                            '/' => {
-                                while let Some(c) = get_char() {
-                                    if c == '\n' {
-                                        break;
+            }
+            // Check for newlines
+            else if c.is_whitespace() {
+                if c == '\n' {
+                    self.lineno += 1;
+                }
+            }
+            // Check for operators
+            else {
+                token.push(c);
+                match c {
+                    '(' | ')' | '{' | '}' | ',' => return Token(Delimeter, token),
+                    ':' => {
+                        if let Some(c) = self.get_char() {
+                            if c == ':' {
+                                token.push(c);
+                            } else {
+                                self.put_back();
+                            }
+                            return Token(Delimeter, token);
+                        }
+                    }
+                    '$' | '.' => return Token(Misc, token),
+                    '+' | '*' | '%' | '^' => return Token(Operator, token),
+                    '-' => {
+                        if let Some(c) = self.get_char() {
+                            if c == '>' {
+                                token.push(c);
+                                return Token(Delimeter, token);
+                            } else {
+                                self.put_back();
+                                return Token(Operator, token);
+                            }
+                        }
+                    }
+                    '/' => {
+                        if let Some(c) = self.get_char() {
+                            match c {
+                                '/' => {
+                                    while let Some(c) = self.get_char() {
+                                        if c == '\n' {
+                                            break;
+                                        }
                                     }
                                 }
-                            }
-                            _ => {
-                                put_back();
-                                return Token::new(Operator, token);
+                                _ => {
+                                    self.put_back();
+                                    return Token(Operator, token);
+                                }
                             }
                         }
                     }
-                }
-                _ => {
-                    token.push(c);
-                    return Token::new(Unknown, token);
+                    _ => {
+                        token.push(c);
+                        return Token(Unknown, token);
+                    }
                 }
             }
         }
+        Token(Done, String::new())
     }
-    Token::new(Done, String::new())
 }
