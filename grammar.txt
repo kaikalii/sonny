@@ -5,18 +5,17 @@ letter -> [a,z] | [A,Z]
 num -> digit num
 	| digit
 
-pitch_letter -> [a,g] | [A,G]
+pitch_letter -> [A,G]
 
 accidental -> # | b | \0
 
-octave -> digit | \0
+octave -> dig octave | digit | \0
 
 real -> num
 	| num .
 	| num . num
 	| . num
 	| pi
-	| real
 
 pitch -> pitch_letter accidental octave
 	| real
@@ -44,9 +43,14 @@ track_declaration -> id : { notes }
 	| id : duration : { notes }
 	| duration : { notes }
 
-keyword -> track | env | start | end | length
+keyword -> start | end | length
 
 global -> t | time | sample_rate
+
+argument_link -> num | id
+
+argument -> $ argument_link |
+	$ argument_link . argument_link
 
 term -> real
 	| global
