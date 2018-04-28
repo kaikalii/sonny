@@ -1,5 +1,6 @@
 #[macro_use]
 mod lexer;
+mod builder;
 mod parser;
 
 use std::env;

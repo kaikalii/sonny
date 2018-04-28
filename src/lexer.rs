@@ -10,6 +10,7 @@ static KEYWORDS: &[&'static str] = &[
     "floor",
     "abs",
     "end",
+    "out",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,7 +18,7 @@ pub enum TokenType {
     Operator,
     Id,
     Num,
-    Note,
+    NoteString,
     Keyword,
     Delimeter,
     Misc,
@@ -99,12 +100,12 @@ impl Lexer {
                         let mut i = 0;
                         if bytes[i] >= 'A' as u8 && bytes[i] <= 'F' as u8 {
                             if bytes.len() == 1 {
-                                return Token(Note, token);
+                                return Token(NoteString, token);
                             } else {
                                 i += 1;
                                 if bytes[i] == 'b' as u8 || bytes[i] == '#' as u8 {
                                     if bytes.len() == 2 {
-                                        return Token(Note, token);
+                                        return Token(NoteString, token);
                                     }
                                     i += 1;
                                 }
@@ -114,7 +115,7 @@ impl Lexer {
                                     }
                                     i += 1;
                                 }
-                                return Token(Note, token);
+                                return Token(NoteString, token);
                             }
                         }
 
