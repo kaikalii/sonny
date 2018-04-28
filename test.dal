@@ -1,1 +1,4 @@
-saints: { Bb3 : 1/4 , D4 : 1/4 , Eb4 : 1/4, F4: 1/4 } -> $0.freq * 5.3
+composition ::
+	saints: { Bb3 : 1/4 , D4 : 1/4 , Eb4 : 1/4, F4: 1/4 } ->
+	$0 * 5.3 ->
+	$1 + $saints.length

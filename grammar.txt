@@ -17,7 +17,9 @@ real -> num
 	| . num
 	| pi
 
-pitch -> pitch_letter accidental octave
+note_notation -> pitch_letter accidental octave
+
+pitch -> note_notation
 	| real
 	| _
 
@@ -27,7 +29,7 @@ duration -> num / num
 note -> pitch : duration
 
 notes -> note , notes
-	| note
+	| \0
 
 alpha_num_us -> letter | digit | _
 
@@ -38,19 +40,28 @@ id_chars -> alpha_num_us id_chars
 id -> letter id_chars
 	| _ id_chars
 
-track_declaration -> id : { notes }
-	| { notes }
-	| id : duration : { notes }
-	| duration : { notes }
+declaration_head -> id : duration : duration :
+	| id : duration :
+	| id :
+	| \0
 
-keyword -> start | end | length
+built_in -> start | end | length
 
-global -> t | time | sample_rate
+global -> sample_rate | time
 
 argument_link -> num | id
 
 argument -> $ argument_link |
 	$ argument_link . argument_link
+
+num_backlinks -> num . backlinks
+	| \0
+
+backlinks -> id . num_backlinks
+	| num_backlinks
+	| id
+
+backlink -> $ backlinks
 
 term -> real
 	| global
@@ -80,14 +91,11 @@ exp_add -> exp_mul + exp_add
 
 expression -> exp_add
 
-expression_declaration -> id : expression
-	| expression
+link -> declaration_head { notes }
+	| declaration_head expression
 
-chain_link -> track_declaration
-	| id
-	| expression
-
-chain -> chain_link -> chain
-	| chain_link
+chain -> link -> chain
+	| link
 
 chain_declaration -> id :: chain
+	| chain
