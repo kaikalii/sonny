@@ -40,8 +40,7 @@ id_chars -> alpha_num_us id_chars
 id -> letter id_chars
 	| _ id_chars
 
-declaration_head -> id : duration : duration :
-	| id : duration :
+declaration_head -> id [ duration : duration ] :
 	| id :
 	| \0
 

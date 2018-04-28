@@ -1,7 +1,16 @@
 use std::fs::File;
 use std::io::Read;
 
-static KEYWORDS: &[&'static str] = &["time", "sample_rate", "sin", "cos", "ceil", "floor", "abs"];
+static KEYWORDS: &[&'static str] = &[
+    "time",
+    "sample_rate",
+    "sin",
+    "cos",
+    "ceil",
+    "floor",
+    "abs",
+    "end",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenType {
@@ -19,8 +28,14 @@ pub enum TokenType {
 
 use self::TokenType::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token(pub TokenType, pub String);
+
+macro_rules! tok {
+    ($t:expr, $s:expr) => {
+        Token($t, ($s).to_string())
+    };
+}
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -129,7 +144,7 @@ impl Lexer {
             else {
                 token.push(c);
                 match c {
-                    '(' | ')' | '{' | '}' | ',' => return Token(Delimeter, token),
+                    '(' | ')' | '{' | '}' | '[' | ']' | ',' => return Token(Delimeter, token),
                     ':' => {
                         if let Some(c) = self.get_char() {
                             if c == ':' {

@@ -28,8 +28,8 @@ impl Parser {
         }
     }
     fn mat(&mut self, t: TokenType) {
-        println!("Expected {:?}, found {:?}", t, self.look);
         if self.look.0 == t {
+            // println!("Expected {:?}, found {:?}", t, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
@@ -38,17 +38,19 @@ impl Parser {
             }
         } else {
             println!(
-                "Unexpected {:?} : {:?} on line {}",
+                "Unexpected {:?} : {:?} on line {}
+                \n expected {:?}",
                 self.look.0,
                 self.look.1,
-                self.lexer.lineno()
+                self.lexer.lineno(),
+                t,
             );
             panic!("Bailing due to error.");
         }
     }
     fn mas(&mut self, s: &str) {
-        println!("Expected {:?}, found {:?}", s, self.look);
         if &self.look.1 == s {
+            // println!("Expected {:?}, found {:?}", s, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
@@ -57,9 +59,34 @@ impl Parser {
             }
         } else {
             println!(
-                "Unexpected {:?} : {:?} on line {}",
+                "Unexpected {:?} : {:?} on line {}\nexpected {:?}",
                 self.look.0,
                 self.look.1,
+                self.lexer.lineno(),
+                s,
+            );
+            panic!("Bailing due to error.");
+        }
+    }
+    fn match_many(&mut self, t: &[Token]) -> Token {
+        if let Some(token) = t.iter().find(|&x| x == &self.look) {
+            // println!(
+            //     "Expected {:?}, found {:?}",
+            //     t.iter().map(|x| x.1.clone()).collect::<Vec<String>>(),
+            //     self.look.1
+            // );
+            if self.peeked {
+                self.peeked = false;
+                self.look = self.next.clone();
+            } else {
+                self.look = self.lexer.lex();
+            }
+            token.clone()
+        } else {
+            println!(
+                "Expcted {:?} , found {:?} on line {}",
+                t,
+                self.look,
                 self.lexer.lineno()
             );
             panic!("Bailing due to error.");
@@ -219,20 +246,32 @@ impl Parser {
         }
     }
     fn expression(&mut self) {
+        // println!("start expression");
         self.exp_add();
+        // println!("end expression");
     }
     fn declaration_head(&mut self) {
-        if self.look.0 == Id && self.peek().1 == ":" {
+        let p = self.peek();
+        if self.look.0 == Id && (p.1 == "[" || p.1 == ":") {
+            // println!("start declaration_head");
             self.mat(Id);
-            self.mas(":");
-            if self.look.0 == Num {
+            if self.match_many(&[tok!(Delimeter, "["), tok!(Delimeter, ":")])
+                .1
+                .as_str() == "["
+            {
                 self.duration();
-                self.mas(":");
-                if self.look.0 == Num {
-                    self.duration();
+                if self.look.1 == ":" {
                     self.mas(":");
+                    if self.look.1 == "end" {
+                        self.mas("end");
+                    } else {
+                        self.duration();
+                    }
                 }
+                self.mas("]");
+                self.mas(":");
             }
+            // println!("end declaration_head");
         }
     }
     fn link(&mut self) {
