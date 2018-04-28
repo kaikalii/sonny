@@ -7,6 +7,7 @@ pub struct Parser {
     look: Token,
     next: Token,
     peeked: bool,
+    stop: u32,
 }
 
 impl Parser {
@@ -18,6 +19,7 @@ impl Parser {
             look,
             next: Token(Empty, String::new()),
             peeked: false,
+            stop: 0,
         }
     }
     pub fn parse(&mut self) {
@@ -26,6 +28,7 @@ impl Parser {
         }
     }
     fn mat(&mut self, t: TokenType) {
+        println!("Expected {:?}, found {:?}", t, self.look);
         if self.look.0 == t {
             if self.peeked {
                 self.peeked = false;
@@ -44,6 +47,7 @@ impl Parser {
         }
     }
     fn mas(&mut self, s: &str) {
+        println!("Expected {:?}, found {:?}", s, self.look);
         if &self.look.1 == s {
             if self.peeked {
                 self.peeked = false;
@@ -71,18 +75,18 @@ impl Parser {
     fn real(&mut self) {
         if self.look.0 == Num {
             self.mat(Num);
-            if &self.look.1 == "." {
+            if self.look.1 == "." {
                 self.mas(".");
                 if self.look.0 == Num {
                     self.mat(Num);
                 }
             }
-        } else if &self.look.1 == "." {
+        } else if self.look.1 == "." {
             self.mas(".");
             if self.look.0 == Num {
                 self.mat(Num);
             }
-        } else if &self.look.1 == "pi" {
+        } else if self.look.1 == "pi" {
             self.mas("pi");
         }
     }
@@ -122,24 +126,14 @@ impl Parser {
                 self.note();
             }
         }
-        println!("Notes");
     }
     fn num_backlinks(&mut self) {
-        let mut broke = false;
         if self.look.0 == Num {
             self.mat(Num);
             while self.look.1 == "." {
                 self.mas(".");
-                if self.look.0 == Num {
-                    self.mat(Num);
-                } else {
-                    broke = true;
-                    break;
-                }
+                self.mat(Num);
             }
-        }
-        if broke && self.look.0 == BuiltIn {
-            self.mat(BuiltIn);
         }
     }
     fn backlinks(&mut self) {
@@ -154,16 +148,15 @@ impl Parser {
         }
     }
     fn backlink(&mut self) {
-        self.mas("$");
+        self.mas("!");
         self.backlinks();
-        println!("Backlink");
     }
     fn term(&mut self) {
         match self.look.0 {
             Num => self.real(),
             Keyword => self.mat(Keyword),
             Id => self.mat(Id),
-            Misc => if self.look.1 == "$" {
+            Misc => if self.look.1 == "!" {
                 self.backlink();
             },
             Delimeter => {
@@ -219,20 +212,17 @@ impl Parser {
         if self.look.1 == "+" {
             self.mas("+");
             self.exp_add();
-            println!("add");
         }
         if self.look.1 == "-" {
             self.mas("-");
             self.exp_add();
-            println!("sub");
         }
     }
     fn expression(&mut self) {
         self.exp_add();
-        println!("expression");
     }
     fn declaration_head(&mut self) {
-        if self.look.0 == Id {
+        if self.look.0 == Id && self.peek().1 == ":" {
             self.mat(Id);
             self.mas(":");
             if self.look.0 == Num {
@@ -254,11 +244,10 @@ impl Parser {
         } else {
             self.expression();
         }
-        println!("Link");
     }
     fn chain(&mut self) {
         self.link();
-        if self.look.1 == "->" {
+        while self.look.1 == "->" {
             self.mas("->");
             self.link();
         }

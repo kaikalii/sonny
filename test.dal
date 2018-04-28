@@ -1,4 +1,13 @@
-composition ::
-	saints: { Bb3 : 1/4 , D4 : 1/4 , Eb4 : 1/4, F4: 1/4 } ->
-	$0 * 5.3 ->
-	$1 + $saints.length
+sin_gen : sin(2 * pi * !0 * time)
+
+square_gen : sin_gen -> (!0^2)^(1/2)
+
+wave_add : !0 / 2 + !1 / 2
+
+saints: { Bb3 : 1/4 , D4 : 1/4 , Eb4 : 1/4, F4: 1/4 } -> sin_gen
+
+sine_saints: saints -> sin_gen
+
+square_saints: saints -> square_gen
+
+sin_saints -> square_saints -> wave_add

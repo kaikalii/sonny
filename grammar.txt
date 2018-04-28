@@ -49,11 +49,6 @@ built_in -> start | end | length
 
 global -> sample_rate | time
 
-argument_link -> num | id
-
-argument -> $ argument_link |
-	$ argument_link . argument_link
-
 num_backlinks -> num . backlinks
 	| \0
 
@@ -62,6 +57,7 @@ backlinks -> id . num_backlinks
 	| id
 
 backlink -> $ backlinks
+	| $ backlink . built_in
 
 term -> real
 	| global

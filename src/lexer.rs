@@ -1,18 +1,7 @@
 use std::fs::File;
 use std::io::Read;
 
-static KEYWORDS: &[&'static str] = &[
-    "pi",
-    "time",
-    "sample_rate",
-    "sin",
-    "cos",
-    "ceil",
-    "floor",
-    "abs",
-];
-
-static BUILT_IN: &[&'static str] = &["start", "end", "length"];
+static KEYWORDS: &[&'static str] = &["time", "sample_rate", "sin", "cos", "ceil", "floor", "abs"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenType {
@@ -21,7 +10,6 @@ pub enum TokenType {
     Num,
     Note,
     Keyword,
-    BuiltIn,
     Delimeter,
     Misc,
     Done,
@@ -81,16 +69,16 @@ impl Lexer {
                 while let Some(c) = self.get_char() {
                     if c.is_alphanumeric() || c == '_' {
                         token.push(c);
+                    } else {
+                        self.put_back();
+                        // Check for pi
+                        if token == "pi" {
+                            return Token(Num, token);
+                        }
                         // Check for keywords
                         if KEYWORDS.iter().find(|&k| k == &token).is_some() {
                             return Token(Keyword, token);
                         }
-                        // Check for built_ins
-                        if BUILT_IN.iter().find(|&k| k == &token).is_some() {
-                            return Token(BuiltIn, token);
-                        }
-                    } else {
-                        self.put_back();
                         // Check for notes
                         let bytes: Vec<u8> = token.chars().map(|cc| cc as u8).collect();
                         let mut i = 0;
@@ -152,7 +140,7 @@ impl Lexer {
                             return Token(Delimeter, token);
                         }
                     }
-                    '$' | '.' => return Token(Misc, token),
+                    '!' | '.' => return Token(Misc, token),
                     '+' | '*' | '%' | '^' => return Token(Operator, token),
                     '-' => {
                         if let Some(c) = self.get_char() {
