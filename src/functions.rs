@@ -3,15 +3,15 @@ use std::collections::{HashMap, HashSet};
 use builder::*;
 
 #[derive(Debug, Clone)]
-struct FunctionDef {
+pub struct FunctionDef {
     pub true_args: Vec<HashSet<usize>>,
     pub chain: Chain,
 }
 
 #[derive(Debug)]
 pub struct Functions {
-    builder: Builder,
-    functions: HashMap<ChainName, FunctionDef>,
+    pub builder: Builder,
+    pub functions: HashMap<ChainName, FunctionDef>,
 }
 
 impl Functions {
@@ -21,6 +21,13 @@ impl Functions {
             functions: HashMap::new(),
         };
         f.make_functions();
+        println!(
+            "    functions: {:?}",
+            (f.functions
+                .iter()
+                .map(|f| (f.0.clone(), f.1.true_args.clone()))
+                .collect::<Vec<(ChainName, Vec<HashSet<usize>>)>>())
+        );
         f
     }
     fn collect_args(&mut self, expression: &Expression) -> HashSet<usize> {
@@ -44,7 +51,34 @@ impl Functions {
             Expression(ref expr) => {
                 args = args.union(&self.collect_args(&expr)).cloned().collect();
             }
+            BackLink(num) => {
+                args.insert(num);
+            }
             _ => (),
+        }
+        if let Some(op) = operands.1 {
+            match *op {
+                Id(ref id) => {
+                    if !self.functions.contains_key(&ChainName::String(id.clone())) {
+                        let chain = self.builder.chains[&ChainName::String(id.clone())].clone();
+                        self.make_function(chain);
+                    }
+                    args = args.union(
+                        self.functions[&ChainName::String(id.clone())]
+                            .true_args
+                            .last()
+                            .unwrap(),
+                    ).cloned()
+                        .collect();
+                }
+                Expression(ref expr) => {
+                    args = args.union(&self.collect_args(&expr)).cloned().collect();
+                }
+                BackLink(num) => {
+                    args.insert(num);
+                }
+                _ => (),
+            }
         }
         args
     }
@@ -82,7 +116,9 @@ impl Functions {
             .cloned()
             .collect::<Vec<Chain>>()
         {
-            self.make_function(chain);
+            if !self.functions.contains_key(&chain.name) {
+                self.make_function(chain);
+            }
         }
     }
 }

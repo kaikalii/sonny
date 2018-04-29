@@ -18,6 +18,7 @@ fn main() {
         let builder = parser.parse();
         // println!("{:#?}", builder);
         let functions = Functions::new(builder);
+        // println!("{:#?}", functions.functions);
     }
 }
 
