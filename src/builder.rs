@@ -42,24 +42,6 @@ impl Operation {
             | AbsoluteValue(ref a) | Operand(ref a) => (a, None),
         }
     }
-    pub fn operands_mut(&mut self) -> (&mut Operand, Option<&mut Operand>) {
-        use self::Operation::*;
-        match *self {
-            Add(ref mut a, ref mut b)
-            | Subtract(ref mut a, ref mut b)
-            | Multiply(ref mut a, ref mut b)
-            | Divide(ref mut a, ref mut b)
-            | Remainder(ref mut a, ref mut b)
-            | Power(ref mut a, ref mut b) => (a, Some(b)),
-            Negate(ref mut a)
-            | Sine(ref mut a)
-            | Cosine(ref mut a)
-            | Ceiling(ref mut a)
-            | Floor(ref mut a)
-            | AbsoluteValue(ref mut a)
-            | Operand(ref mut a) => (a, None),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -128,6 +110,7 @@ pub struct Builder {
     curr_chain: Option<Chain>,
     pub chains: HashMap<ChainName, Chain>,
     next_anon_chain: usize,
+    pub tempo: f64,
 }
 
 impl Builder {
@@ -136,6 +119,7 @@ impl Builder {
             curr_chain: None,
             chains: HashMap::new(),
             next_anon_chain: 0,
+            tempo: 120.0,
         }
     }
     pub fn new_chain(&mut self) {

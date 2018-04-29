@@ -16,18 +16,17 @@ fn main() {
     if args.len() >= 2 {
         let parser = Parser::new(&args[1]);
         let builder = parser.parse();
-        // println!("{:#?}", builder);
         let functions = Functions::new(builder);
-        // println!("{:#?}", functions.functions);
+        write(functions, 44100.0);
     }
 }
 
-fn write(builder: Builder, sample_rate: f64) {
+fn write(functions: Functions, sample_rate: f64) {
     // Find the audio end time
     let mut end = f64::MAX;
-    for chain in builder.chains.values() {
-        for link in &chain.links {
-            if let Time::Absolute(t) = link.period.end {
+    for function in functions.functions.values() {
+        for expression in &function.chain.links {
+            if let Time::Absolute(t) = expression.period.end {
                 if t.lt(&end) {
                     end = t;
                 }
@@ -40,10 +39,17 @@ fn write(builder: Builder, sample_rate: f64) {
 
     let mut song = vec![0f64; (sample_rate * end) as usize];
 
-    // for (i, mut sample) in song.iter_mut().enumerate() {
-    let i = 0;
-    let mut sample = 0.0;
-    let time = i as f64 / sample_rate;
-
-    // }
+    for (i, mut sample) in song.iter_mut().enumerate() {
+        let time = i as f64 / sample_rate;
+        println!("t = {}", time);
+        for name in functions
+            .functions
+            .iter()
+            .filter(|f| f.1.chain.play)
+            .map(|f| f.0)
+        {
+            *sample = functions.evaluate_function(&name, &[], time);
+            // println!("    {:?}: {}", name, sample);
+        }
+    }
 }

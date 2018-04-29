@@ -44,7 +44,6 @@ pub struct Parser {
     next: Token,
     peeked: bool,
     sample_rate: f64,
-    tempo: f64,
     curr_time: f64,
 }
 
@@ -59,7 +58,6 @@ impl Parser {
             next: Token(Empty, String::new()),
             peeked: false,
             sample_rate: 44100.0,
-            tempo: 120.0,
             curr_time: 0.0,
         }
     }
@@ -202,7 +200,7 @@ impl Parser {
                     self.lexer.lineno(),
                 ));
                 self.mat(Num);
-                (num1 / num2) / (self.tempo / 60.0)
+                (num1 / num2) / (self.builder.tempo / 60.0) * 4.0
             } else {
                 self.real()
             }

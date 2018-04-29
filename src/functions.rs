@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use builder::*;
+use builder::{self, *};
 
 #[derive(Debug, Clone)]
 pub struct FunctionDef {
@@ -120,5 +120,79 @@ impl Functions {
                 self.make_function(chain);
             }
         }
+    }
+
+    fn evaluate_operand(
+        &self,
+        operand: &Operand,
+        name: &ChainName,
+        args: &[f64],
+        time: f64,
+    ) -> f64 {
+        use Operand::*;
+        match *operand {
+            Num(x) => x,
+            Id(ref id) => self.evaluate_function(&ChainName::String(id.clone()), args, time),
+            Time => time,
+            BackLink(num) => args[num - 1],
+            Notes(ref notes) => {
+                let mut result = 0.0;
+                for note in notes {
+                    if note.period.contains(builder::Time::Absolute(time)) {
+                        result = note.pitch;
+                        break;
+                    }
+                }
+                result
+            }
+            Expression(ref expression) => self.evaluate_expression(expression, name, args, time),
+        }
+    }
+
+    fn evaluate_expression(
+        &self,
+        expression: &Expression,
+        name: &ChainName,
+        args: &[f64],
+        time: f64,
+    ) -> f64 {
+        use self::Operation::*;
+        let (a, b) = expression.operation.operands();
+        let x = self.evaluate_operand(a, name, args, time);
+        let y = b.map(|bb| self.evaluate_operand(bb, name, args, time));
+        match expression.operation {
+            Add(..) => x + y.unwrap(),
+            Subtract(..) => x - y.unwrap(),
+            Multiply(..) => x * y.unwrap(),
+            Divide(..) => x / y.unwrap(),
+            Remainder(..) => x % y.unwrap(),
+            Power(..) => x.powf(y.unwrap()),
+            Negate(..) => -x,
+            Sine(..) => x.sin(),
+            Cosine(..) => x.cos(),
+            Ceiling(..) => x.ceil(),
+            Floor(..) => x.floor(),
+            AbsoluteValue(..) => x.abs(),
+            Operand(..) => x,
+        }
+    }
+
+    pub fn evaluate_function(&self, name: &ChainName, args: &[f64], time: f64) -> f64 {
+        // println!("Calling function {:?}", name);
+        let mut results = Vec::new();
+        for expression in self.functions[name].chain.links.iter() {
+            let mut these_args = Vec::new();
+            for &r in results.iter().rev() {
+                these_args.push(r);
+            }
+            for &a in args {
+                these_args.push(a);
+            }
+            // println!("  {:?}", expression);
+            // println!("  with args: {:?}", these_args);
+            results.push(self.evaluate_expression(expression, name, &these_args, time));
+            // println!("    result: {}", results.last().unwrap());
+        }
+        *results.last().unwrap()
     }
 }
