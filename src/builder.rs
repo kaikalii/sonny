@@ -103,6 +103,15 @@ pub enum ChainName {
     Anonymous(usize),
 }
 
+impl ChainName {
+    pub fn to_string(&self) -> String {
+        match *self {
+            ChainName::String(ref s) => s.clone(),
+            ChainName::Anonymous(i) => format!("anon{:04}", i),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Chain {
     pub name: ChainName,
