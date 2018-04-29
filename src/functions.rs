@@ -22,7 +22,7 @@ impl Functions {
         };
         f.make_functions();
         println!(
-            "    functions: {:?}",
+            "functions: {:?}",
             (f.functions
                 .iter()
                 .map(|f| (f.0.clone(), f.1.true_args.clone()))
@@ -178,7 +178,7 @@ impl Functions {
     }
 
     pub fn evaluate_function(&self, name: &ChainName, args: &[f64], time: f64) -> f64 {
-        // println!("Calling function {:?}", name);
+        println!("  Calling function {:?}", name);
         let mut results = Vec::new();
         for expression in self.functions[name].chain.links.iter() {
             let mut these_args = Vec::new();

@@ -6,22 +6,22 @@ fn string_to_pitch(s: &str) -> f64 {
     let bytes = s.as_bytes();
     let letter = bytes[0] as char;
     let mut octave = 3;
-    let accidental = if bytes[1] as char == '#' {
-        if s.len() == 2 {
-            octave = bytes[2] as i8 - '0' as i8;
+    let accidental: i32 = if bytes[1] as char == '#' {
+        if s.len() == 3 {
+            octave = (bytes[2] as char).to_digit(10).unwrap();
         }
         1
     } else if bytes[1] as char == 'b' {
-        if s.len() == 2 {
-            octave = bytes[2] as i8 - '0' as i8;
+        if s.len() == 3 {
+            octave = (bytes[2] as char).to_digit(10).unwrap();
         }
         -1
     } else {
-        octave = bytes[1] as i8 - '0' as i8;
+        octave = (bytes[1] as char).to_digit(10).unwrap();
         0
     };
 
-    let mut local_offset = match letter {
+    let mut local_offset: i32 = match letter {
         'C' => 0,
         'D' => 2,
         'E' => 4,
@@ -32,7 +32,7 @@ fn string_to_pitch(s: &str) -> f64 {
         _ => panic!("Invalid note letter"),
     };
     local_offset += accidental;
-    let offset = local_offset + octave * 12;
+    let offset = local_offset + (octave * 12) as i32;
     16.3516f64 * 1.059463094359f64.powf(offset as f64)
 }
 
@@ -233,6 +233,7 @@ impl Parser {
                 note_list.push(self.note());
             }
         }
+        self.curr_time = 0.0;
         note_list
     }
     fn backlink(&mut self) -> Operand {

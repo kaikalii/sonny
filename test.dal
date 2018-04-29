@@ -1,7 +1,18 @@
 sin_gen : sin(2 * pi * !1 * time)
 
+square_gen : sin_gen -> (floor !1 + 0.5)
+
 wave_add : !2 / 2 + !1 / 2
 
-saints : { Bb3 : 1/4 , D4 : 1/4 , Eb4 : 1/4, F4: 1/4 }
+saints : { Bb3 : 1/4 , D4 : 1/4 , Eb4 : 1/4, F4: 5/4 }
 
-sine_saints : saints -> sin_gen -> out
+saints2: { D4 : 1/4 , F4 : 1/4 , G4 : 1/4 , A4: 5/4 }
+
+sine_saints : saints -> sin_gen
+sine_saints2 : saints2 -> sin_gen
+
+square_saints: saints -> square_gen
+
+sine_saints -> sine_saints2 -> wave_add
+
+sine_saints -> saints2 -> sin_gen -> wave_add -> out

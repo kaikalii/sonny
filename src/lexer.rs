@@ -92,7 +92,7 @@ impl Lexer {
                         // Check for notes
                         let bytes: Vec<u8> = token.chars().map(|cc| cc as u8).collect();
                         let mut i = 0;
-                        if bytes[i] >= 'A' as u8 && bytes[i] <= 'F' as u8 {
+                        if bytes[i] >= 'A' as u8 && bytes[i] <= 'G' as u8 {
                             if bytes.len() == 1 {
                                 return Token(NoteString, token);
                             } else {
