@@ -168,7 +168,8 @@ impl Builder {
                     if let Ok(ref mut chain_to_call) =
                         self.chains[&ChainName::String(id.clone())].try_borrow_mut()
                     {
-                        self.evaluate_chain(chain_to_call, Some(chain), time)
+                        stack.push((chain_to_call, 0));
+                        self.evaluate_chain(stack, time)
                     } else {
                         panic!("Detected recursive chain: \"{}\"", id);
                     }
@@ -176,8 +177,18 @@ impl Builder {
                     panic!("Unkown id: \"{}\"", id);
                 }
             }
-            BackLink(num) => self.evaluate_link(stack, time),
-            BackChain(num) => self.evaluate_link(caller, caller, backlink + num + 1, time),
+            BackLink(num) => {
+                stack.last().unwrap().1 += num + 1;
+                let result = self.evaluate_link(stack, time);
+                stack.last().unwrap().1 -= num + 1;
+                result
+            }
+            BackChain(num) => {
+                let this_chain = stack.pop().unwrap();
+                let result = self.evaluate_link(stack, time);
+                stack.push(this_chain);
+                result
+            }
             Time => time,
             Operation(ref operation) => self.evaluate_operation(stack, operation, time),
         }
