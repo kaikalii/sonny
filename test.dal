@@ -14,4 +14,4 @@ sine_saints2 : saints2 -> sin_gen
 
 square_saints [1/1: 2/1] : saints -> square_gen
 
-[start:2/1] : sine_saints -> square_saints -> wave_add -> out
+sine_saints -> square_saints -> wave_add -> out

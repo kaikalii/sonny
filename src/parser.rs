@@ -422,7 +422,7 @@ impl Parser {
     fn chain_declaration(&mut self) -> Option<String> {
         let mut name = None;
         let mut need_colon = false;
-        if self.look.0 == Id {
+        if self.look.0 == Id && self.peek().1 == "[" || self.peek().1 == ":" {
             name = Some(self.look.1.clone());
             self.mat(Id);
             need_colon = true;
