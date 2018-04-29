@@ -1,12 +1,14 @@
 #[macro_use]
 mod lexer;
 mod builder;
+mod functions;
 mod parser;
 
 use std::env;
 use std::f64;
 
 use builder::*;
+use functions::*;
 use parser::*;
 
 fn main() {
@@ -15,7 +17,7 @@ fn main() {
         let parser = Parser::new(&args[1]);
         let builder = parser.parse();
         // println!("{:#?}", builder);
-        write(builder, 44100.0);
+        let functions = Functions::new(builder);
     }
 }
 

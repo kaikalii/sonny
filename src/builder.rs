@@ -8,7 +8,6 @@ pub enum Operand {
     BackLink(usize),
     Time,
     Notes(Vec<Note>),
-    Chain(Chain, usize),
     Expression(Box<Expression>),
 }
 
@@ -171,57 +170,5 @@ impl Builder {
         } else {
             panic!("No current chain add expressions to");
         }
-    }
-    pub fn evaluate_operand(&self, op: &Operand, time: f64) -> f64 {
-        use self::Operand::*;
-        match *op {
-            Num(x) => x,
-            Time => time,
-            Expression(ref expression) => self.evaluate_expression(expression, time),
-            _ => panic!("Unsimplified operand"),
-        }
-    }
-    pub fn evaluate_expression(&self, expression: &Expression, time: f64) -> f64 {
-        use self::Operation::*;
-        let (a, b) = expression.operation.operands();
-        let x = self.evaluate_operand(a, time);
-        let y = b.map(|bb| self.evaluate_operand(bb, time));
-        match expression.operation {
-            Add(..) => x + y.unwrap(),
-            Subtract(..) => x - y.unwrap(),
-            Multiply(..) => x * y.unwrap(),
-            Divide(..) => x / y.unwrap(),
-            Remainder(..) => x % y.unwrap(),
-            Power(..) => x.powf(y.unwrap()),
-            Negate(..) => -x,
-            Sine(..) => x.sin(),
-            Cosine(..) => x.cos(),
-            Ceiling(..) => x.ceil(),
-            Floor(..) => x.floor(),
-            AbsoluteValue(..) => x.abs(),
-            Operand(..) => x,
-        }
-    }
-    pub fn eliminate_backlinks(&mut self, chain: &mut Chain, backlink: usize) -> bool {
-        let operands = chain
-            .links
-            .iter_mut()
-            .rev()
-            .skip(backlink)
-            .next()
-            .expect("Tried to eleminate backlinks of empty chain")
-            .operation
-            .operands_mut();
-        use self::Operand::*;
-        let mut result = false;
-        *operands.0 = match operands.0 {
-            BackLink(num) => Operand::Chain(chain.clone(), backlink + num.clone()),
-            Chain(chain, backlink) => {
-                // if chain.links.len() == 1
-            }
-            Operation(expr) => {}
-            _ => (),
-        };
-        result
     }
 }

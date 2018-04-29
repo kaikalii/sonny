@@ -1,41 +1,25 @@
-sin_gen : [0/1 : 1/2] sin(2 * pi * !!0 * time)
+sin_gen : [0/1 : 1/2] sin(2 * pi * !1 * time)
+sin_gen(!1) = sin(2 * pi * !1 * time)
 
-square_gen : [1/2 : end] sin_gen -> (!0^2)^(1/2)
+square_gen : [1/2 : end] sin_gen -> (!1^2)^(1/2)
+square_gen(!1) = (sin_gen(1)^2)^(1/2)
 
-wave_add : !0 / 2 + !1 / 2
+wave_add : !2 / 2 + !1 / 2
+wave_add(!1, !2) = !2 / 2 + !1 / 2
 
 saints : { Bb3 : 1/4 , D4 : 1/4 , Eb4 : 1/4, F4: 1/4 }
 
 sine_saints : saints -> sin_gen
+sin_saints = sin_gen(saints)
 
-square_saints : saints -> square_gen
+square_saints : saints -> square_gen(!1)
+square_saints = square_gen(saints)
 
+add: !1 + !2
 
-a: [1] !0
+sub: !1 - !2
 
-b: [2] a -> !0
+3 -> !4 -> !1 + !2 -> 9 -> !1 - !2
+3 -> !3 -> !1 + 3 -> 9 -> 9 - !3 + 3
 
-c: !0 + !1
-
-d: {}
-
-e: d -> a
-
-f: d -> b
-
-
-e -> f -> c
-
-e -> f -> !0 + !1
-
-e + f
-
-d -> [1] !0 + d -> [2] a -> !0
-
-[1] d + d -> [2] a
-
-[1] {} + d -> [2] [1] !0
-
-[1] {} + [2] [1] d
-
-[1] {} + [2] [1] {}
+1 -> 0 -> 0 -> 3 -> !4 -> !1 + !2 -> 9 -> !1 - !2
