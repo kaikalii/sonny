@@ -6,7 +6,8 @@ use std::f64;
 pub enum Operand {
     Num(f64),
     Id(String),
-    BackLink(Option<String>, Vec<usize>),
+    BackLink(usize),
+    BackChain(usize),
     Time,
     Operation(Box<Operation>),
 }
@@ -77,111 +78,165 @@ pub struct Link {
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum LinkName {
+pub enum ChainName {
     String(String),
     Anonymous(usize),
 }
 
 #[derive(Debug, Clone)]
 pub struct Chain {
-    pub name: LinkName,
-    pub link_names: Vec<LinkName>,
+    pub name: ChainName,
+    pub links: Vec<Link>,
     pub play: bool,
 }
 
 #[derive(Debug)]
 pub struct Builder {
-    pub chains: Vec<Chain>,
-    pub links: HashMap<LinkName, RefCell<Link>>,
-    next_anon_link: usize,
+    curr_chain: Option<Chain>,
+    pub chains: HashMap<ChainName, RefCell<Chain>>,
     next_anon_chain: usize,
 }
 
 impl Builder {
     pub fn new() -> Builder {
         Builder {
-            chains: Vec::new(),
-            links: HashMap::new(),
-            next_anon_link: 0,
+            curr_chain: None,
+            chains: HashMap::new(),
             next_anon_chain: 0,
         }
     }
     pub fn new_chain(&mut self) {
-        self.chains.push(Chain {
-            name: {
-                self.next_anon_chain += 1;
-                LinkName::Anonymous(self.next_anon_chain - 1)
-            },
-            link_names: Vec::new(),
+        self.curr_chain = Some(Chain {
+            name: ChainName::String(String::new()),
+            links: Vec::new(),
             play: false,
         });
     }
-    pub fn name_chain(&mut self, name: String) {
-        self.chains
-            .iter_mut()
-            .rev()
-            .next()
-            .expect("Attempted to name non-existant first chain")
-            .name = LinkName::String(name);
-        self.next_anon_chain -= 1;
+    pub fn finalize_chain(&mut self, name: Option<String>) {
+        let mut chain = self.curr_chain.take().expect("No chain to finalize");
+        if let Some(n) = name {
+            chain.name = ChainName::String(n.clone());
+            self.chains
+                .insert(ChainName::String(n), RefCell::new(chain));
+        } else {
+            chain.name = ChainName::Anonymous(self.next_anon_chain);
+            self.chains.insert(
+                ChainName::Anonymous(self.next_anon_chain),
+                RefCell::new(chain),
+            );
+            self.next_anon_chain += 1;
+        }
     }
     pub fn play_chain(&mut self) {
-        self.chains
-            .iter_mut()
-            .rev()
-            .next()
-            .expect("Attempted to set play of non-existant first chain")
-            .play = true;
-    }
-    pub fn new_expression(&mut self, name: Option<String>, period: Period, top_op: Operation) {
-        let link_name = if let Some(n) = name {
-            LinkName::String(n.clone())
+        if let Some(ref mut chain) = self.curr_chain {
+            chain.play = true;
         } else {
-            LinkName::Anonymous({
-                self.next_anon_link += 1;
-                self.next_anon_link - 1
-            })
-        };
-        self.chains
-            .iter_mut()
-            .rev()
-            .next()
-            .expect("Attempted to insert into non-existant first chain")
-            .link_names
-            .push(link_name.clone());
-        self.links.insert(
-            link_name,
-            RefCell::new(Link {
+            panic!("No current chain to set to play");
+        }
+    }
+    pub fn new_expression(&mut self, period: Period, top_op: Operation) {
+        if let Some(ref mut chain) = self.curr_chain {
+            chain.links.push(Link {
                 body: LinkBody::Expression(top_op),
                 period: period,
-            }),
-        );
-    }
-    pub fn new_notes(&mut self, name: Option<String>, period: Period, notes: Vec<Note>) {
-        let link_name = if let Some(n) = name {
-            LinkName::String(n.clone())
+            });
         } else {
-            LinkName::Anonymous({
-                self.next_anon_link += 1;
-                self.next_anon_link - 1
-            })
-        };
-        self.chains
-            .iter_mut()
-            .rev()
-            .next()
-            .expect("Attempted to insert into non-existant first chain")
-            .link_names
-            .push(link_name.clone());
-        self.links.insert(
-            link_name,
-            RefCell::new(Link {
+            panic!("No current chain add expressions to");
+        }
+    }
+    pub fn new_notes(&mut self, period: Period, notes: Vec<Note>) {
+        if let Some(ref mut chain) = self.curr_chain {
+            chain.links.push(Link {
                 body: LinkBody::Notes(notes),
                 period: period,
-            }),
-        );
+            });
+        } else {
+            panic!("No current chain add notes to");
+        }
     }
-    pub fn evaluate_link(&self, link: RefMut<Link>, time: f64) -> f64 {
+    pub fn evaluate_operand(
+        &self,
+        stack: &mut Vec<(&RefMut<Chain>, usize)>,
+        op: &Operand,
+        time: f64,
+    ) -> f64 {
+        use self::Operand::*;
+        match *op {
+            Num(x) => x,
+            Id(ref id) => {
+                if self.chains.contains_key(&ChainName::String(id.clone())) {
+                    if let Ok(ref mut chain_to_call) =
+                        self.chains[&ChainName::String(id.clone())].try_borrow_mut()
+                    {
+                        self.evaluate_chain(chain_to_call, Some(chain), time)
+                    } else {
+                        panic!("Detected recursive chain: \"{}\"", id);
+                    }
+                } else {
+                    panic!("Unkown id: \"{}\"", id);
+                }
+            }
+            BackLink(num) => self.evaluate_link(stack, time),
+            BackChain(num) => self.evaluate_link(caller, caller, backlink + num + 1, time),
+            Time => time,
+            Operation(ref operation) => self.evaluate_operation(stack, operation, time),
+        }
+    }
+    pub fn evaluate_operation(
+        &self,
+        stack: &mut Vec<(&RefMut<Chain>, usize)>,
+        operation: &Operation,
+        time: f64,
+    ) -> f64 {
+        use self::Operation::*;
+        let (a, b) = match *operation {
+            Add(ref a, ref b)
+            | Subtract(ref a, ref b)
+            | Multiply(ref a, ref b)
+            | Divide(ref a, ref b)
+            | Remainder(ref a, ref b)
+            | Power(ref a, ref b) => (a, Some(b)),
+            Negate(ref a) | Sine(ref a) | Cosine(ref a) | Ceiling(ref a) | Floor(ref a)
+            | AbsoluteValue(ref a) | NoOperation(ref a) => (a, None),
+        };
+
+        let x = self.evaluate_operand(stack, a, time);
+        let y = b.map(|bb| self.evaluate_operand(stack, bb, time));
+        match *operation {
+            Add(..) => x + y.unwrap(),
+            Subtract(..) => x - y.unwrap(),
+            Multiply(..) => x * y.unwrap(),
+            Divide(..) => x / y.unwrap(),
+            Remainder(..) => x % y.unwrap(),
+            Power(..) => x.powf(y.unwrap()),
+            Negate(..) => -x,
+            Sine(..) => x.sin(),
+            Cosine(..) => x.cos(),
+            Ceiling(..) => x.ceil(),
+            Floor(..) => x.floor(),
+            AbsoluteValue(..) => x.abs(),
+            NoOperation(..) => x,
+        }
+    }
+    pub fn evaluate_link(&self, stack: &mut Vec<(&RefMut<Chain>, usize)>, time: f64) -> f64 {
+        let link = if let Some(link) = stack
+            .last()
+            .unwrap()
+            .0
+            .links
+            .iter()
+            .rev()
+            .skip(stack.last().unwrap().1)
+            .next()
+        {
+            link.clone()
+        } else {
+            panic!(
+                "Chain {:?} does not have {} backlink(s)",
+                stack.last().unwrap().0.name,
+                stack.last().unwrap().1 + 1
+            );
+        };
         match link.body {
             LinkBody::Notes(ref notes) => {
                 for note in notes {
@@ -191,36 +246,14 @@ impl Builder {
                 }
                 panic!("Unable to get frequency from notes at time {}", time);
             }
-            LinkBody::Expression(ref operation) => {
-                use self::Operation::*;
-                let (a, b) = match *operation {
-                    Add(ref a, ref b)
-                    | Subtract(ref a, ref b)
-                    | Multiply(ref a, ref b)
-                    | Divide(ref a, ref b)
-                    | Remainder(ref a, ref b)
-                    | Power(ref a, ref b) => (a, Some(b)),
-                    Negate(ref a) | Sine(ref a) | Cosine(ref a) | Ceiling(ref a) | Floor(ref a)
-                    | AbsoluteValue(ref a) | NoOperation(ref a) => (a, None),
-                };
-
-                let (mut x, mut y) = (0.0, Some(0.0));
-                match *operation {
-                    Add(..) => x + y.unwrap(),
-                    Subtract(..) => x - y.unwrap(),
-                    Multiply(..) => x * y.unwrap(),
-                    Divide(..) => x / y.unwrap(),
-                    Remainder(..) => x % y.unwrap(),
-                    Power(..) => x.powf(y.unwrap()),
-                    Negate(..) => -x,
-                    Sine(..) => x.sin(),
-                    Cosine(..) => x.cos(),
-                    Ceiling(..) => x.ceil(),
-                    Floor(..) => x.floor(),
-                    AbsoluteValue(..) => x.abs(),
-                    NoOperation(..) => x,
-                }
-            }
+            LinkBody::Expression(ref operation) => self.evaluate_operation(stack, operation, time),
+        }
+    }
+    pub fn evaluate_chain(&self, stack: &mut Vec<(&RefMut<Chain>, usize)>, time: f64) -> f64 {
+        if !stack.last().unwrap().0.links.is_empty() {
+            self.evaluate_link(stack, time)
+        } else {
+            panic!("Tried to evaluate empty chain");
         }
     }
 }

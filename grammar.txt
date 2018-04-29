@@ -40,28 +40,22 @@ id_chars -> alpha_num_us id_chars
 id -> letter id_chars
 	| _ id_chars
 
-declaration_head -> id [ duration : duration ] :
-	| id :
+period -> [ duration : duration ]
 	| \0
 
 built_in -> start | end | length
 
 global -> sample_rate | time
 
-num_backlinks -> num . backlinks
-	| \0
+backlink -> ! num
 
-backlinks -> id . num_backlinks
-	| num_backlinks
-	| id
-
-backlink -> $ backlinks
-	| $ backlink . built_in
+backchain -> !! num
 
 term -> real
 	| global
 	| id
-	| $ num . id
+	| backlink
+	| backchain
 	| ( expression )
 
 exp_un -> - term
@@ -86,11 +80,11 @@ exp_add -> exp_mul + exp_add
 
 expression -> exp_add
 
-link -> declaration_head { notes }
-	| declaration_head expression
+link -> period { notes }
+	| period expression
 
 chain -> link -> chain
 	| link
 
-chain_declaration -> id :: chain
+chain_declaration -> id : chain
 	| chain

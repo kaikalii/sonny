@@ -32,12 +32,6 @@ use self::TokenType::*;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token(pub TokenType, pub String);
 
-macro_rules! tok {
-    ($t:expr, $s:expr) => {
-        Token($t, ($s).to_string())
-    };
-}
-
 #[derive(Debug)]
 pub struct Lexer {
     lineno: usize,
@@ -156,7 +150,18 @@ impl Lexer {
                             return Token(Delimeter, token);
                         }
                     }
-                    '!' | '.' => return Token(Misc, token),
+                    '.' => return Token(Misc, token),
+                    '!' => {
+                        if let Some(c) = self.get_char() {
+                            if c == '!' {
+                                token.push(c);
+                                return Token(Misc, token);
+                            } else {
+                                self.put_back();
+                                return Token(Misc, token);
+                            }
+                        }
+                    }
                     '+' | '*' | '%' | '^' => return Token(Operator, token),
                     '-' => {
                         if let Some(c) = self.get_char() {

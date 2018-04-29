@@ -14,6 +14,7 @@ fn main() {
     if args.len() >= 2 {
         let parser = Parser::new(&args[1]);
         let builder = parser.parse();
+        println!("{:#?}", builder);
         write(builder, 44100.0);
     }
 }
@@ -21,10 +22,12 @@ fn main() {
 fn write(builder: Builder, sample_rate: f64) {
     // Find the audio end time
     let mut end = f64::MAX;
-    for link in builder.links.values() {
-        if let Time::Absolute(t) = link.borrow().period.end {
-            if t.lt(&end) {
-                end = t;
+    for chain in builder.chains.values().map(|chain| chain.borrow()) {
+        for link in &chain.links {
+            if let Time::Absolute(t) = link.period.end {
+                if t.lt(&end) {
+                    end = t;
+                }
             }
         }
     }
@@ -36,17 +39,15 @@ fn write(builder: Builder, sample_rate: f64) {
 
     for (i, mut sample) in song.iter_mut().enumerate() {
         let time = i as f64 / sample_rate;
-        for chain in builder.chains.iter().filter(|c| c.play) {
-            *sample = builder.evaluate_link(
-                builder.links[&chain
-                                  .link_names
-                                  .iter()
-                                  .rev()
-                                  .next()
-                                  .expect("Chain has no links")]
-                    .borrow_mut(),
-                time,
-            );
+        let names_to_play: Vec<ChainName> = builder
+            .chains
+            .iter()
+            .filter(|(_, c)| c.borrow().play)
+            .map(|(n, _)| n.clone())
+            .collect();
+        for name in names_to_play {
+            *sample =
+                builder.evaluate_chain(&mut vec![(&builder.chains[&name].borrow_mut(), 0)], time);
         }
     }
 }

@@ -67,15 +67,13 @@ impl Parser {
         while self.look.0 != Done {
             self.builder.new_chain();
             let chain_name = self.chain_declaration();
-            if let Some(cn) = chain_name {
-                self.builder.name_chain(cn);
-            }
+            self.builder.finalize_chain(chain_name);
         }
         self.builder
     }
     fn mat(&mut self, t: TokenType) {
         if self.look.0 == t {
-            // println!("Expected {:?}, found {:?}", t, self.look.1);
+            println!("Expected {:?}, found {:?}", t, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
@@ -96,7 +94,7 @@ impl Parser {
     }
     fn mas(&mut self, s: &str) {
         if &self.look.1 == s {
-            // println!("Expected {:?}, found {:?}", s, self.look.1);
+            println!("Expected {:?}, found {:?}", s, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
@@ -114,30 +112,30 @@ impl Parser {
             panic!("Bailing due to error.");
         }
     }
-    fn match_many(&mut self, t: &[Token]) -> Token {
-        if let Some(token) = t.iter().find(|&x| x == &self.look) {
-            // println!(
-            //     "Expected {:?}, found {:?}",
-            //     t.iter().map(|x| x.1.clone()).collect::<Vec<String>>(),
-            //     self.look.1
-            // );
-            if self.peeked {
-                self.peeked = false;
-                self.look = self.next.clone();
-            } else {
-                self.look = self.lexer.lex();
-            }
-            token.clone()
-        } else {
-            println!(
-                "Expcted {:?} , found {:?} on line {}",
-                t,
-                self.look,
-                self.lexer.lineno()
-            );
-            panic!("Bailing due to error.");
-        }
-    }
+    // fn match_many(&mut self, t: &[Token]) -> Token {
+    //     if let Some(token) = t.iter().find(|&x| x == &self.look) {
+    //         // println!(
+    //         //     "Expected {:?}, found {:?}",
+    //         //     t.iter().map(|x| x.1.clone()).collect::<Vec<String>>(),
+    //         //     self.look.1
+    //         // );
+    //         if self.peeked {
+    //             self.peeked = false;
+    //             self.look = self.next.clone();
+    //         } else {
+    //             self.look = self.lexer.lex();
+    //         }
+    //         token.clone()
+    //     } else {
+    //         println!(
+    //             "Expcted {:?} , found {:?} on line {}",
+    //             t,
+    //             self.look,
+    //             self.lexer.lineno()
+    //         );
+    //         panic!("Bailing due to error.");
+    //     }
+    // }
     fn peek(&mut self) -> Token {
         if !self.peeked {
             self.peeked = true;
@@ -239,43 +237,33 @@ impl Parser {
         }
         note_list
     }
-    fn num_backlinks(&mut self) -> Vec<usize> {
-        let mut num_links = Vec::new();
-        if self.look.0 == Num {
-            num_links.push(self.look.1.parse().expect(&format!(
-                "Unable to parse numeric backlink on line {}",
-                self.lexer.lineno(),
-            )));
-            self.mat(Num);
-            while self.look.1 == "." {
-                self.mas(".");
-                num_links.push(self.look.1.parse().expect(&format!(
-                    "Unable to parse numeric backlink on line {}",
-                    self.lexer.lineno(),
-                )));
-                self.mat(Num);
-            }
-        }
-        num_links
-    }
-    fn backlinks(&mut self) -> Operand {
-        let mut id_link = None;
-        let mut num_links = Vec::new();
-        if self.look.0 == Id {
-            id_link = Some(self.look.1.clone());
-            self.mat(Id);
-            if self.look.1 == "." {
-                self.mas(".");
-                num_links = self.num_backlinks();
-            }
-        } else {
-            num_links = self.num_backlinks();
-        }
-        Operand::BackLink(id_link, num_links)
-    }
     fn backlink(&mut self) -> Operand {
         self.mas("!");
-        self.backlinks()
+        let op = Operand::BackLink(if let Ok(x) = self.look.1.parse() {
+            x
+        } else {
+            panic!(
+                "Invalid backlink number \"{}\" on line {}",
+                self.look.1,
+                self.lexer.lineno()
+            )
+        });
+        self.mat(Num);
+        op
+    }
+    fn backchain(&mut self) -> Operand {
+        self.mas("!!");
+        let op = Operand::BackChain(if let Ok(x) = self.look.1.parse() {
+            x
+        } else {
+            panic!(
+                "Invalid backchain number \"{}\" on line {}",
+                self.look.1,
+                self.lexer.lineno()
+            )
+        });
+        self.mat(Num);
+        op
     }
     fn term(&mut self) -> Operand {
         match self.look.0 {
@@ -299,6 +287,8 @@ impl Parser {
             }
             Misc => if self.look.1 == "!" {
                 self.backlink()
+            } else if self.look.1 == "!!" {
+                self.backchain()
             } else {
                 panic!(
                     "Misc term {:?} is invalid on line {}",
@@ -403,49 +393,38 @@ impl Parser {
     fn expression(&mut self) -> Operation {
         self.exp_add()
     }
-    fn declaration_head(&mut self) -> (Option<String>, Period) {
-        let p = self.peek();
-        let mut name = None;
+    fn period(&mut self) -> Period {
         let mut period = Period {
             start: Time::Start,
             end: Time::End,
         };
-        if self.look.0 == Id && (p.1 == "[" || p.1 == ":") {
-            name = Some(self.look.1.clone());
-            self.mat(Id);
-            if self.match_many(&[tok!(Delimeter, "["), tok!(Delimeter, ":")])
-                .1
-                .as_str() == "["
-            {
-                if self.look.1 == "start" {
-                    self.mas("start");
-                } else {
-                    period.start = Time::Absolute(self.duration());
-                }
-                if self.look.1 == ":" {
-                    self.mas(":");
-                    if self.look.1 == "end" {
-                        self.mas("end");
-                    } else {
-                        period.end = Time::Absolute(self.duration());
-                    }
-                }
-                self.mas("]");
-                self.mas(":");
+        if self.look.1 == "[" {
+            self.mas("[");
+            if self.look.1 == "start" {
+                self.mas("start");
+            } else {
+                period.start = Time::Absolute(self.duration());
             }
+            self.mas(":");
+            if self.look.1 == "end" {
+                self.mas("end");
+            } else {
+                period.end = Time::Absolute(self.duration());
+            }
+            self.mas("]");
         }
-        (name, period)
+        period
     }
     fn link(&mut self) {
-        let (name, period) = self.declaration_head();
+        let period = self.period();
         if self.look.1 == "{" {
             self.mas("{");
             let note_list = self.notes();
             self.mas("}");
-            self.builder.new_notes(name, period, note_list);
+            self.builder.new_notes(period, note_list);
         } else {
             let expr_op = self.expression();
-            self.builder.new_expression(name, period, expr_op);
+            self.builder.new_expression(period, expr_op);
         }
     }
     fn chain(&mut self) {
@@ -462,10 +441,10 @@ impl Parser {
     }
     fn chain_declaration(&mut self) -> Option<String> {
         let mut name = None;
-        if self.look.0 == Id && self.peek().1 == "::" {
+        if self.look.0 == Id && self.peek().1 == ":" {
             name = Some(self.look.1.clone());
             self.mat(Id);
-            self.mas("::");
+            self.mas(":");
         }
         self.chain();
         name
