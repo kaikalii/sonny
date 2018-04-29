@@ -63,7 +63,7 @@ impl Parser {
             curr_time: 0.0,
         }
     }
-    pub fn parse(&mut self) {
+    pub fn parse(mut self) -> Builder {
         while self.look.0 != Done {
             self.builder.new_chain();
             let chain_name = self.chain_declaration();
@@ -71,7 +71,7 @@ impl Parser {
                 self.builder.name_chain(cn);
             }
         }
-        println!("{:#?}", self.builder);
+        self.builder
     }
     fn mat(&mut self, t: TokenType) {
         if self.look.0 == t {
@@ -283,7 +283,6 @@ impl Parser {
             Keyword => {
                 let op = match self.look.1.as_str() {
                     "time" => Operand::Time,
-                    "sample_rate" => Operand::SampleRate,
                     _ => panic!(
                         "Keyword term {:?} is invalid on line {}",
                         self.look.1,
@@ -344,7 +343,7 @@ impl Parser {
             self.mas("abs");
             Operation::AbsoluteValue(self.term())
         } else {
-            Operation::None(self.term())
+            Operation::NoOperation(self.term())
         }
     }
     fn exp_pow(&mut self) -> Operation {
@@ -393,7 +392,7 @@ impl Parser {
             )
         } else if self.look.1 == "-" {
             self.mas("-");
-            Operation::Substract(
+            Operation::Subtract(
                 Operand::Operation(Box::new(lhs_op)),
                 Operand::Operation(Box::new(self.exp_add())),
             )

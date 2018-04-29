@@ -1,6 +1,6 @@
-sin_gen [0/1 : 1/2] : sin(2 * pi * !0 * time)
+sin_gen [0/1 : 1/2] : sin(2 * pi * !0 * time) -> out
 
-square_gen [1/2 : end] : sin_gen -> (!0^2)^(1/2)
+square_gen [1/2 : end] : sin_gen -> (!0^2)^(1/2) -> out
 
 //test: 1 - -2
 //
@@ -12,4 +12,3 @@ square_gen [1/2 : end] : sin_gen -> (!0^2)^(1/2)
 //
 //square_saints: saints -> square_gen
 //
-final :: sin_saints -> square_saints -> wave_add -> out
