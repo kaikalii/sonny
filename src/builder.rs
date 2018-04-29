@@ -56,7 +56,7 @@ impl Time {
         match *self {
             Time::Absolute(a) => a,
             Time::Start => 0.0,
-            Time::End => panic!("Period cannot begin at end"),
+            Time::End => f64::MAX,
         }
     }
 }
@@ -72,6 +72,12 @@ impl Period {
         time.to_f64().ge(&self.start.to_f64())
             && (time.to_f64().lt(&self.end.to_f64()) || self.end == Time::End && time == Time::End)
     }
+    pub fn forever() -> Period {
+        Period {
+            start: Time::Start,
+            end: Time::End,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -83,12 +89,11 @@ pub struct Note {
 #[derive(Debug, Clone)]
 pub struct Expression {
     pub operation: Operation,
-    pub period: Period,
 }
 
 impl Expression {
-    pub fn new(operation: Operation, period: Period) -> Expression {
-        Expression { operation, period }
+    pub fn new(operation: Operation) -> Expression {
+        Expression { operation }
     }
 }
 
@@ -102,6 +107,7 @@ pub enum ChainName {
 pub struct Chain {
     pub name: ChainName,
     pub links: Vec<Expression>,
+    pub period: Period,
     pub play: bool,
 }
 
@@ -126,6 +132,7 @@ impl Builder {
         self.curr_chain = Some(Chain {
             name: ChainName::String(String::new()),
             links: Vec::new(),
+            period: Period::forever(),
             play: false,
         });
     }
@@ -139,6 +146,13 @@ impl Builder {
             self.chains
                 .insert(ChainName::Anonymous(self.next_anon_chain), chain);
             self.next_anon_chain += 1;
+        }
+    }
+    pub fn chain_period(&mut self, period: Period) {
+        if let Some(ref mut chain) = self.curr_chain {
+            chain.period = period;
+        } else {
+            panic!("No current chain to set period");
         }
     }
     pub fn play_chain(&mut self) {

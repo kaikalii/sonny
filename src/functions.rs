@@ -178,21 +178,29 @@ impl Functions {
     }
 
     pub fn evaluate_function(&self, name: &ChainName, args: &[f64], time: f64) -> f64 {
-        println!("  Calling function {:?}", name);
-        let mut results = Vec::new();
-        for expression in self.functions[name].chain.links.iter() {
-            let mut these_args = Vec::new();
-            for &r in results.iter().rev() {
-                these_args.push(r);
+        // println!("  Calling function {:?}", name);
+        if self.functions[name]
+            .chain
+            .period
+            .contains(Time::Absolute(time))
+        {
+            let mut results = Vec::new();
+            for expression in self.functions[name].chain.links.iter() {
+                let mut these_args = Vec::new();
+                for &r in results.iter().rev() {
+                    these_args.push(r);
+                }
+                for &a in args {
+                    these_args.push(a);
+                }
+                // println!("  {:?}", expression);
+                // println!("  with args: {:?}", these_args);
+                results.push(self.evaluate_expression(expression, name, &these_args, time));
+                // println!("    result: {}", results.last().unwrap());
             }
-            for &a in args {
-                these_args.push(a);
-            }
-            // println!("  {:?}", expression);
-            // println!("  with args: {:?}", these_args);
-            results.push(self.evaluate_expression(expression, name, &these_args, time));
-            // println!("    result: {}", results.last().unwrap());
+            *results.last().unwrap()
+        } else {
+            0.0
         }
-        *results.last().unwrap()
     }
 }

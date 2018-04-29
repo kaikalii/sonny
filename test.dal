@@ -8,11 +8,10 @@ saints : { Bb3 : 1/4 , D4 : 1/4 , Eb4 : 1/4, F4: 5/4 }
 
 saints2: { D4 : 1/4 , F4 : 1/4 , G4 : 1/4 , A4: 5/4 }
 
-sine_saints : saints -> sin_gen
+sine_saints [start: 1/1] : saints -> sin_gen
+
 sine_saints2 : saints2 -> sin_gen
 
-square_saints: saints -> square_gen
+square_saints [1/1: 2/1] : saints -> square_gen
 
-sine_saints -> sine_saints2 -> wave_add
-
-sine_saints -> saints2 -> sin_gen -> wave_add -> out
+[start:2/1] : sine_saints -> square_saints -> wave_add -> out

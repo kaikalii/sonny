@@ -27,24 +27,23 @@ fn main() {
 fn write(functions: Functions, sample_rate: f64) {
     // Find the audio end time
     let mut end = f64::MAX;
-    for function in functions.functions.values() {
-        for expression in &function.chain.links {
-            if let Time::Absolute(t) = expression.period.end {
-                if t.lt(&end) {
-                    end = t;
-                }
+    for chain in functions.functions.values().map(|f| &f.chain) {
+        if let Time::Absolute(t) = chain.period.end {
+            if t.lt(&end) && end == f64::MAX || t.gt(&end) && end != f64::MAX {
+                end = t;
             }
         }
     }
     if end == f64::MAX {
-        end = 4.0;
+        end = 1.0;
     }
+    println!("end: {}", end);
 
     let mut song = vec![0f64; (sample_rate * end) as usize];
 
     for (i, mut sample) in song.iter_mut().enumerate() {
         let time = i as f64 / sample_rate;
-        println!("t = {}", time);
+        // println!("t = {}", time);
         for name in functions
             .functions
             .iter()

@@ -78,10 +78,10 @@ exp_add -> exp_mul + exp_add
 
 expression -> exp_add
 
-link -> period expression
+link -> expression
 
 chain -> link -> chain
 	| link
 
-chain_declaration -> id : chain
+chain_declaration -> id period : chain
 	| chain
