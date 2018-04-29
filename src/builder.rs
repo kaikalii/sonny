@@ -1,4 +1,4 @@
-use std::cell::{RefCell, RefMut};
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::f64;
 
@@ -154,9 +154,12 @@ impl Builder {
             panic!("No current chain add notes to");
         }
     }
+    pub fn chain(&self, name: &ChainName) -> Ref<Chain> {
+        self.chains[name].borrow()
+    }
     pub fn evaluate_operand(
         &self,
-        stack: &mut Vec<(&RefMut<Chain>, usize)>,
+        stack: &mut Vec<(ChainName, usize)>,
         op: &Operand,
         time: f64,
     ) -> f64 {
@@ -164,12 +167,16 @@ impl Builder {
         match *op {
             Num(x) => x,
             Id(ref id) => {
+                println!("id: {}", id);
                 if self.chains.contains_key(&ChainName::String(id.clone())) {
-                    if let Ok(ref mut chain_to_call) =
-                        self.chains[&ChainName::String(id.clone())].try_borrow_mut()
+                    if self.chains[&ChainName::String(id.clone())]
+                        .try_borrow()
+                        .is_ok()
                     {
-                        stack.push((chain_to_call, 0));
-                        self.evaluate_chain(stack, time)
+                        stack.push((ChainName::String(id.clone()), 0));
+                        let result = self.evaluate_chain(stack, time);
+                        stack.pop();
+                        result
                     } else {
                         panic!("Detected recursive chain: \"{}\"", id);
                     }
@@ -178,15 +185,24 @@ impl Builder {
                 }
             }
             BackLink(num) => {
-                stack.last().unwrap().1 += num + 1;
+                println!("backlink: {}", num);
+                stack.last_mut().unwrap().1 += num + 1;
                 let result = self.evaluate_link(stack, time);
-                stack.last().unwrap().1 -= num + 1;
+                stack.last_mut().unwrap().1 -= num + 1;
                 result
             }
             BackChain(num) => {
-                let this_chain = stack.pop().unwrap();
+                println!("backchain: {}", num);
+                let mut upper_chains = Vec::new();
+                for _ in 0..(num + 1) {
+                    upper_chains.push(stack.pop().unwrap());
+                }
+                stack.last_mut().unwrap().1 += num + 1;
                 let result = self.evaluate_link(stack, time);
-                stack.push(this_chain);
+                stack.last_mut().unwrap().1 -= num + 1;
+                for _ in 0..(num + 1) {
+                    stack.push(upper_chains.pop().unwrap());
+                }
                 result
             }
             Time => time,
@@ -195,7 +211,7 @@ impl Builder {
     }
     pub fn evaluate_operation(
         &self,
-        stack: &mut Vec<(&RefMut<Chain>, usize)>,
+        stack: &mut Vec<(ChainName, usize)>,
         operation: &Operation,
         time: f64,
     ) -> f64 {
@@ -229,25 +245,29 @@ impl Builder {
             NoOperation(..) => x,
         }
     }
-    pub fn evaluate_link(&self, stack: &mut Vec<(&RefMut<Chain>, usize)>, time: f64) -> f64 {
-        let link = if let Some(link) = stack
-            .last()
-            .unwrap()
-            .0
-            .links
-            .iter()
-            .rev()
-            .skip(stack.last().unwrap().1)
-            .next()
-        {
-            link.clone()
-        } else {
-            panic!(
-                "Chain {:?} does not have {} backlink(s)",
-                stack.last().unwrap().0.name,
-                stack.last().unwrap().1 + 1
-            );
-        };
+    pub fn evaluate_link(&self, stack: &mut Vec<(ChainName, usize)>, time: f64) -> f64 {
+        println!(
+            "Evaluatiing backlink {} of chain {:?}",
+            stack.last().unwrap().1,
+            stack.last().unwrap().0
+        );
+        let mut upper_chains = Vec::new();
+        let mut link = None;
+        loop {
+            link = self.chain(&stack.last().unwrap().0)
+                .links
+                .iter()
+                .rev()
+                .skip(stack.last().unwrap().1)
+                .next();
+            if link.is_some() {
+                break;
+            } else {
+
+            }
+        }
+
+        let link = link.unwrap();
         match link.body {
             LinkBody::Notes(ref notes) => {
                 for note in notes {
@@ -260,8 +280,8 @@ impl Builder {
             LinkBody::Expression(ref operation) => self.evaluate_operation(stack, operation, time),
         }
     }
-    pub fn evaluate_chain(&self, stack: &mut Vec<(&RefMut<Chain>, usize)>, time: f64) -> f64 {
-        if !stack.last().unwrap().0.links.is_empty() {
+    pub fn evaluate_chain(&self, stack: &mut Vec<(ChainName, usize)>, time: f64) -> f64 {
+        if !self.chain(&stack.last().unwrap().0).links.is_empty() {
             self.evaluate_link(stack, time)
         } else {
             panic!("Tried to evaluate empty chain");

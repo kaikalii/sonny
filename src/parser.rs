@@ -73,7 +73,7 @@ impl Parser {
     }
     fn mat(&mut self, t: TokenType) {
         if self.look.0 == t {
-            println!("Expected {:?}, found {:?}", t, self.look.1);
+            // println!("Expected {:?}, found {:?}", t, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
@@ -94,7 +94,7 @@ impl Parser {
     }
     fn mas(&mut self, s: &str) {
         if &self.look.1 == s {
-            println!("Expected {:?}, found {:?}", s, self.look.1);
+            // println!("Expected {:?}, found {:?}", s, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();

@@ -14,7 +14,7 @@ fn main() {
     if args.len() >= 2 {
         let parser = Parser::new(&args[1]);
         let builder = parser.parse();
-        println!("{:#?}", builder);
+        // println!("{:#?}", builder);
         write(builder, 44100.0);
     }
 }
@@ -37,17 +37,19 @@ fn write(builder: Builder, sample_rate: f64) {
 
     let mut song = vec![0f64; (sample_rate * end) as usize];
 
-    for (i, mut sample) in song.iter_mut().enumerate() {
-        let time = i as f64 / sample_rate;
-        let names_to_play: Vec<ChainName> = builder
-            .chains
-            .iter()
-            .filter(|(_, c)| c.borrow().play)
-            .map(|(n, _)| n.clone())
-            .collect();
-        for name in names_to_play {
-            *sample =
-                builder.evaluate_chain(&mut vec![(&builder.chains[&name].borrow_mut(), 0)], time);
-        }
+    // for (i, mut sample) in song.iter_mut().enumerate() {
+    let i = 0;
+    let mut sample = 0.0;
+    let time = i as f64 / sample_rate;
+    let names_to_play: Vec<ChainName> = builder
+        .chains
+        .iter()
+        .filter(|(_, c)| c.borrow().play)
+        .map(|(n, _)| n.clone())
+        .collect();
+    for name in names_to_play {
+        sample = builder.evaluate_chain(&mut vec![(name, 0)], time);
+        println!();
     }
+    // }
 }
