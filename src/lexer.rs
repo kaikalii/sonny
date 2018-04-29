@@ -150,18 +150,7 @@ impl Lexer {
                             return Token(Delimeter, token);
                         }
                     }
-                    '.' => return Token(Misc, token),
-                    '!' => {
-                        if let Some(c) = self.get_char() {
-                            if c == '!' {
-                                token.push(c);
-                                return Token(Misc, token);
-                            } else {
-                                self.put_back();
-                                return Token(Misc, token);
-                            }
-                        }
-                    }
+                    '!' | '.' => return Token(Misc, token),
                     '+' | '*' | '%' | '^' => return Token(Operator, token),
                     '-' => {
                         if let Some(c) = self.get_char() {

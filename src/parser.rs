@@ -251,20 +251,6 @@ impl Parser {
         self.mat(Num);
         op
     }
-    fn backchain(&mut self) -> Operand {
-        self.mas("!!");
-        let op = Operand::BackChain(if let Ok(x) = self.look.1.parse() {
-            x
-        } else {
-            panic!(
-                "Invalid backchain number \"{}\" on line {}",
-                self.look.1,
-                self.lexer.lineno()
-            )
-        });
-        self.mat(Num);
-        op
-    }
     fn term(&mut self) -> Operand {
         match self.look.0 {
             Num => Operand::Num(self.real()),
@@ -287,8 +273,6 @@ impl Parser {
             }
             Misc => if self.look.1 == "!" {
                 self.backlink()
-            } else if self.look.1 == "!!" {
-                self.backchain()
             } else {
                 panic!(
                     "Misc term {:?} is invalid on line {}",
@@ -299,9 +283,9 @@ impl Parser {
             Delimeter => {
                 if self.look.1 == "(" {
                     self.mas("(");
-                    let op = self.expression();
+                    let expr = self.expression();
                     self.mas(")");
-                    Operand::Operation(Box::new(op))
+                    Operand::Expression(Box::new(expr))
                 } else if self.look.1 == "{" {
                     self.mas("{");
                     let notes = self.notes();
@@ -318,84 +302,106 @@ impl Parser {
             ),
         }
     }
-    fn exp_un(&mut self) -> Operation {
+    fn exp_un(&mut self) -> Expression {
+        let period = self.period();
         if &self.look.1 == "-" {
             self.mas("-");
-            Operation::Negate(self.term())
+            Expression::new(Operation::Negate(self.term()), period)
         } else if &self.look.1 == "sin" {
             self.mas("sin");
-            Operation::Sine(self.term())
+            Expression::new(Operation::Sine(self.term()), period)
         } else if &self.look.1 == "cos" {
             self.mas("cos");
-            Operation::Cosine(self.term())
+            Expression::new(Operation::Cosine(self.term()), period)
         } else if &self.look.1 == "ceil" {
             self.mas("ceil");
-            Operation::Ceiling(self.term())
+            Expression::new(Operation::Ceiling(self.term()), period)
         } else if &self.look.1 == "floor" {
             self.mas("floor");
-            Operation::Floor(self.term())
+            Expression::new(Operation::Floor(self.term()), period)
         } else if &self.look.1 == "abs" {
             self.mas("abs");
-            Operation::AbsoluteValue(self.term())
+            Expression::new(Operation::AbsoluteValue(self.term()), period)
         } else {
-            Operation::NoOperation(self.term())
+            Expression::new(Operation::Operand(self.term()), period)
         }
     }
-    fn exp_pow(&mut self) -> Operation {
+    fn exp_pow(&mut self) -> Expression {
+        let period = self.period();
         let base_op = self.exp_un();
         if self.look.1 == "^" {
             self.mas("^");
-            Operation::Power(
-                Operand::Operation(Box::new(base_op)),
-                Operand::Operation(Box::new(self.exp_pow())),
+            Expression::new(
+                Operation::Power(
+                    Operand::Expression(Box::new(base_op)),
+                    Operand::Expression(Box::new(self.exp_pow())),
+                ),
+                period,
             )
         } else {
             base_op
         }
     }
-    fn exp_mul(&mut self) -> Operation {
+    fn exp_mul(&mut self) -> Expression {
+        let period = self.period();
         let lhs_op = self.exp_pow();
         if self.look.1 == "*" {
             self.mas("*");
-            Operation::Multiply(
-                Operand::Operation(Box::new(lhs_op)),
-                Operand::Operation(Box::new(self.exp_mul())),
+            Expression::new(
+                Operation::Multiply(
+                    Operand::Expression(Box::new(lhs_op)),
+                    Operand::Expression(Box::new(self.exp_mul())),
+                ),
+                period,
             )
         } else if self.look.1 == "/" {
             self.mas("/");
-            Operation::Divide(
-                Operand::Operation(Box::new(lhs_op)),
-                Operand::Operation(Box::new(self.exp_mul())),
+            Expression::new(
+                Operation::Divide(
+                    Operand::Expression(Box::new(lhs_op)),
+                    Operand::Expression(Box::new(self.exp_mul())),
+                ),
+                period,
             )
         } else if self.look.1 == "%" {
             self.mas("%");
-            Operation::Remainder(
-                Operand::Operation(Box::new(lhs_op)),
-                Operand::Operation(Box::new(self.exp_mul())),
+            Expression::new(
+                Operation::Remainder(
+                    Operand::Expression(Box::new(lhs_op)),
+                    Operand::Expression(Box::new(self.exp_mul())),
+                ),
+                period,
             )
         } else {
             lhs_op
         }
     }
-    fn exp_add(&mut self) -> Operation {
+    fn exp_add(&mut self) -> Expression {
+        let period = self.period();
         let lhs_op = self.exp_mul();
         if self.look.1 == "+" {
             self.mas("+");
-            Operation::Add(
-                Operand::Operation(Box::new(lhs_op)),
-                Operand::Operation(Box::new(self.exp_add())),
+            Expression::new(
+                Operation::Add(
+                    Operand::Expression(Box::new(lhs_op)),
+                    Operand::Expression(Box::new(self.exp_add())),
+                ),
+                period,
             )
         } else if self.look.1 == "-" {
             self.mas("-");
-            Operation::Subtract(
-                Operand::Operation(Box::new(lhs_op)),
-                Operand::Operation(Box::new(self.exp_add())),
+            Expression::new(
+                Operation::Subtract(
+                    Operand::Expression(Box::new(lhs_op)),
+                    Operand::Expression(Box::new(self.exp_add())),
+                ),
+                period,
             )
         } else {
             lhs_op
         }
     }
-    fn expression(&mut self) -> Operation {
+    fn expression(&mut self) -> Expression {
         self.exp_add()
     }
     fn period(&mut self) -> Period {
@@ -421,9 +427,8 @@ impl Parser {
         period
     }
     fn link(&mut self) {
-        let period = self.period();
-        let expr_op = self.expression();
-        self.builder.new_expression(period, expr_op);
+        let expr = self.expression();
+        self.builder.new_expression(expr);
     }
     fn chain(&mut self) {
         self.link();

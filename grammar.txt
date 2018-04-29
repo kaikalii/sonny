@@ -49,13 +49,10 @@ global -> sample_rate | time
 
 backlink -> ! num
 
-backchain -> !! num
-
 term -> real
 	| global
 	| id
 	| backlink
-	| backchain
 	| notes
 	| ( expression )
 

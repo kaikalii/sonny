@@ -22,7 +22,7 @@ fn main() {
 fn write(builder: Builder, sample_rate: f64) {
     // Find the audio end time
     let mut end = f64::MAX;
-    for chain in builder.chains.values().map(|chain| chain.borrow()) {
+    for chain in builder.chains.values() {
         for link in &chain.links {
             if let Time::Absolute(t) = link.period.end {
                 if t.lt(&end) {
