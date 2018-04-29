@@ -302,6 +302,11 @@ impl Parser {
                     let op = self.expression();
                     self.mas(")");
                     Operand::Operation(Box::new(op))
+                } else if self.look.1 == "{" {
+                    self.mas("{");
+                    let notes = self.notes();
+                    self.mas("}");
+                    Operand::Notes(notes)
                 } else {
                     panic!("Invalid delimeter on line {}", self.lexer.lineno());
                 }
@@ -417,15 +422,8 @@ impl Parser {
     }
     fn link(&mut self) {
         let period = self.period();
-        if self.look.1 == "{" {
-            self.mas("{");
-            let note_list = self.notes();
-            self.mas("}");
-            self.builder.new_notes(period, note_list);
-        } else {
-            let expr_op = self.expression();
-            self.builder.new_expression(period, expr_op);
-        }
+        let expr_op = self.expression();
+        self.builder.new_expression(period, expr_op);
     }
     fn chain(&mut self) {
         self.link();

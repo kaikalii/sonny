@@ -6,12 +6,6 @@ wave_add : !0 / 2 + !1 / 2
 
 saints : { Bb3 : 1/4 , D4 : 1/4 , Eb4 : 1/4, F4: 1/4 }
 
-sine_saints : saints -> sin_gen -> out
+sine_saints : saints -> sin_gen
 
-square_saints : saints -> square_gen -> out
-
-b: !!0
-
-c : b -> !0
-
-d: a -> c -> out
+square_saints : saints -> square_gen

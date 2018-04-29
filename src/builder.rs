@@ -9,6 +9,7 @@ pub enum Operand {
     BackLink(usize),
     BackChain(usize),
     Time,
+    Notes(Vec<Note>),
     Operation(Box<Operation>),
 }
 
@@ -66,14 +67,8 @@ pub struct Note {
 }
 
 #[derive(Debug, Clone)]
-pub enum LinkBody {
-    Notes(Vec<Note>),
-    Expression(Operation),
-}
-
-#[derive(Debug, Clone)]
 pub struct Link {
-    pub body: LinkBody,
+    pub body: Operation,
     pub period: Period,
 }
 
@@ -137,84 +132,23 @@ impl Builder {
     pub fn new_expression(&mut self, period: Period, top_op: Operation) {
         if let Some(ref mut chain) = self.curr_chain {
             chain.links.push(Link {
-                body: LinkBody::Expression(top_op),
+                body: top_op,
                 period: period,
             });
         } else {
             panic!("No current chain add expressions to");
         }
     }
-    pub fn new_notes(&mut self, period: Period, notes: Vec<Note>) {
-        if let Some(ref mut chain) = self.curr_chain {
-            chain.links.push(Link {
-                body: LinkBody::Notes(notes),
-                period: period,
-            });
-        } else {
-            panic!("No current chain add notes to");
-        }
-    }
-    pub fn chain(&self, name: &ChainName) -> Ref<Chain> {
-        self.chains[name].borrow()
-    }
-    pub fn evaluate_operand(
-        &self,
-        stack: &mut Vec<(ChainName, usize)>,
-        op: &Operand,
-        time: f64,
-    ) -> f64 {
+    pub fn evaluate_operand(&self, op: &Operand, time: f64) -> f64 {
         use self::Operand::*;
         match *op {
             Num(x) => x,
-            Id(ref id) => {
-                println!("id: {}", id);
-                if self.chains.contains_key(&ChainName::String(id.clone())) {
-                    if self.chains[&ChainName::String(id.clone())]
-                        .try_borrow()
-                        .is_ok()
-                    {
-                        stack.push((ChainName::String(id.clone()), 0));
-                        let result = self.evaluate_chain(stack, time);
-                        stack.pop();
-                        result
-                    } else {
-                        panic!("Detected recursive chain: \"{}\"", id);
-                    }
-                } else {
-                    panic!("Unkown id: \"{}\"", id);
-                }
-            }
-            BackLink(num) => {
-                println!("backlink: {}", num);
-                stack.last_mut().unwrap().1 += num + 1;
-                let result = self.evaluate_link(stack, time);
-                stack.last_mut().unwrap().1 -= num + 1;
-                result
-            }
-            BackChain(num) => {
-                println!("backchain: {}", num);
-                let mut upper_chains = Vec::new();
-                for _ in 0..(num + 1) {
-                    upper_chains.push(stack.pop().unwrap());
-                }
-                stack.last_mut().unwrap().1 += num + 1;
-                let result = self.evaluate_link(stack, time);
-                stack.last_mut().unwrap().1 -= num + 1;
-                for _ in 0..(num + 1) {
-                    stack.push(upper_chains.pop().unwrap());
-                }
-                result
-            }
             Time => time,
-            Operation(ref operation) => self.evaluate_operation(stack, operation, time),
+            Operation(ref operation) => self.evaluate_operation(operation, time),
+            _ => panic!("Unsimplified operand"),
         }
     }
-    pub fn evaluate_operation(
-        &self,
-        stack: &mut Vec<(ChainName, usize)>,
-        operation: &Operation,
-        time: f64,
-    ) -> f64 {
+    pub fn evaluate_operation(&self, operation: &Operation, time: f64) -> f64 {
         use self::Operation::*;
         let (a, b) = match *operation {
             Add(ref a, ref b)
@@ -227,8 +161,8 @@ impl Builder {
             | AbsoluteValue(ref a) | NoOperation(ref a) => (a, None),
         };
 
-        let x = self.evaluate_operand(stack, a, time);
-        let y = b.map(|bb| self.evaluate_operand(stack, bb, time));
+        let x = self.evaluate_operand(a, time);
+        let y = b.map(|bb| self.evaluate_operand(bb, time));
         match *operation {
             Add(..) => x + y.unwrap(),
             Subtract(..) => x - y.unwrap(),
@@ -243,48 +177,6 @@ impl Builder {
             Floor(..) => x.floor(),
             AbsoluteValue(..) => x.abs(),
             NoOperation(..) => x,
-        }
-    }
-    pub fn evaluate_link(&self, stack: &mut Vec<(ChainName, usize)>, time: f64) -> f64 {
-        println!(
-            "Evaluatiing backlink {} of chain {:?}",
-            stack.last().unwrap().1,
-            stack.last().unwrap().0
-        );
-        let mut upper_chains = Vec::new();
-        let mut link = None;
-        loop {
-            link = self.chain(&stack.last().unwrap().0)
-                .links
-                .iter()
-                .rev()
-                .skip(stack.last().unwrap().1)
-                .next();
-            if link.is_some() {
-                break;
-            } else {
-
-            }
-        }
-
-        let link = link.unwrap();
-        match link.body {
-            LinkBody::Notes(ref notes) => {
-                for note in notes {
-                    if note.period.contains(Time::Absolute(time)) {
-                        return note.pitch;
-                    }
-                }
-                panic!("Unable to get frequency from notes at time {}", time);
-            }
-            LinkBody::Expression(ref operation) => self.evaluate_operation(stack, operation, time),
-        }
-    }
-    pub fn evaluate_chain(&self, stack: &mut Vec<(ChainName, usize)>, time: f64) -> f64 {
-        if !self.chain(&stack.last().unwrap().0).links.is_empty() {
-            self.evaluate_link(stack, time)
-        } else {
-            panic!("Tried to evaluate empty chain");
         }
     }
 }

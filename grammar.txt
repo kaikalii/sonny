@@ -56,6 +56,7 @@ term -> real
 	| id
 	| backlink
 	| backchain
+	| notes
 	| ( expression )
 
 exp_un -> - term
@@ -80,8 +81,7 @@ exp_add -> exp_mul + exp_add
 
 expression -> exp_add
 
-link -> period { notes }
-	| period expression
+link -> period expression
 
 chain -> link -> chain
 	| link

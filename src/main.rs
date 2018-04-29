@@ -41,15 +41,6 @@ fn write(builder: Builder, sample_rate: f64) {
     let i = 0;
     let mut sample = 0.0;
     let time = i as f64 / sample_rate;
-    let names_to_play: Vec<ChainName> = builder
-        .chains
-        .iter()
-        .filter(|(_, c)| c.borrow().play)
-        .map(|(n, _)| n.clone())
-        .collect();
-    for name in names_to_play {
-        sample = builder.evaluate_chain(&mut vec![(name, 0)], time);
-        println!();
-    }
+
     // }
 }
