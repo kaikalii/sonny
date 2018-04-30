@@ -4,6 +4,7 @@ extern crate hound;
 #[macro_use]
 mod lexer;
 mod builder;
+mod error;
 mod functions;
 mod parser;
 

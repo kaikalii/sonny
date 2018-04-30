@@ -1,6 +1,8 @@
 use std::fs::File;
 use std::io::Read;
 
+use error::*;
+
 static KEYWORDS: &[&'static str] = &[
     "time", "sin", "cos", "ceil", "floor", "abs", "min", "max", "log", "end", "out", "dur", "w",
     "h", "q", "e", "s", "ts", "tempo",
@@ -14,7 +16,9 @@ pub enum TokenType {
     NoteString,
     Keyword,
     Delimeter,
-    Misc,
+    BackLink,
+    Dot,
+    Rest,
     Done,
     Unknown,
     Empty,
@@ -28,22 +32,28 @@ pub struct Token(pub TokenType, pub String);
 #[derive(Debug)]
 pub struct Lexer {
     lineno: usize,
+    column: usize,
     was_put_back: bool,
     c: [u8; 1],
     file: File,
 }
 
 impl Lexer {
-    pub fn new(file: &str) -> Lexer {
-        Lexer {
+    pub fn new(file: &str) -> SonnyResult<Lexer> {
+        Ok(Lexer {
             lineno: 1,
+            column: 1,
             was_put_back: false,
             c: [0],
-            file: File::open(file).expect(&format!("Unable to open file \"{}\"", file)),
-        }
+            file: if let Ok(f) = File::open(file) {
+                f
+            } else {
+                return Err(Error::new(ErrorSpec::FileNotFound(file.to_string())));
+            },
+        })
     }
-    pub fn lineno(&self) -> usize {
-        self.lineno
+    pub fn lineno(&self) -> (usize, usize) {
+        (self.lineno, self.column)
     }
     fn get_char(&mut self) -> Option<char> {
         if self.was_put_back {
@@ -143,7 +153,9 @@ impl Lexer {
                             return Token(Delimeter, token);
                         }
                     }
-                    '!' | '.' | '_' => return Token(Misc, token),
+                    '!' => return Token(BackLink, token),
+                    '.' => return Token(Dot, token),
+                    '_' => return Token(Rest, token),
                     '+' | '*' | '%' | '^' => return Token(Operator, token),
                     '-' => {
                         if let Some(c) = self.get_char() {

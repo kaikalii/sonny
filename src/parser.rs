@@ -1,6 +1,9 @@
 use std::f64;
 
+use either::*;
+
 use builder::*;
+use error::{ErrorSpec::*, *};
 use lexer::TokenType::*;
 use lexer::*;
 
@@ -57,10 +60,10 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(file: &str) -> Parser {
-        let mut lexer = Lexer::new(file);
+    pub fn new(file: &str) -> SonnyResult<Parser> {
+        let mut lexer = Lexer::new(file)?;
         let look = lexer.lex();
-        Parser {
+        Ok(Parser {
             lexer,
             builder: Builder::new(),
             look,
@@ -69,7 +72,7 @@ impl Parser {
             sample_rate: 44100.0,
             curr_time: 0.0,
             paren_level: 0,
-        }
+        })
     }
     pub fn parse(mut self) -> Builder {
         // Parse everything into chains
@@ -84,28 +87,21 @@ impl Parser {
 
         self.builder
     }
-    fn mat(&mut self, t: TokenType) {
+    fn mat(&mut self, t: TokenType) -> SonnyResult<()> {
         if self.look.0 == t {
             // println!("Expected {:?}, found {:?}", t, self.look.1);
-            if self.peeked {
+            Ok(if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
             } else {
                 self.look = self.lexer.lex();
-            }
+            })
         } else {
-            println!(
-                "Unexpected {:?} : {:?} on line {}
-                \n expected {:?}",
-                self.look.0,
-                self.look.1,
-                self.lexer.lineno(),
-                t,
-            );
-            panic!("Bailing due to error.");
+            Err(Error::new(ErrorSpec::ExpectedFound(Left(t), self.look))
+                .on_line(self.lexer.lineno()))
         }
     }
-    fn mas(&mut self, s: &str) {
+    fn mas(&mut self, s: &str) -> SonnyResult<()> {
         if &self.look.1 == s {
             // println!("Expected {:?}, found {:?}", s, self.look.1);
             if self.peeked {
@@ -114,24 +110,21 @@ impl Parser {
             } else {
                 self.look = self.lexer.lex();
             }
-            if s == "(" {
+            Ok(if s == "(" {
                 self.paren_level += 1;
             } else if s == ")" {
                 if self.paren_level > 0 {
                     self.paren_level -= 1;
                 } else {
-                    panic!("Incorrect close delimeter on line {}", self.lexer.lineno());
+                    return Err(Error::new(ErrorSpec::CloseDelimeter(")".to_string()))
+                        .on_line(self.lexer.lineno()));
                 }
-            }
+            })
         } else {
-            println!(
-                "Unexpected {:?} : {:?} on line {}\nexpected {:?}",
-                self.look.0,
-                self.look.1,
-                self.lexer.lineno(),
-                s,
-            );
-            panic!("Bailing due to error.");
+            Err(
+                Error::new(ErrorSpec::ExpectedFound(Right(s.to_string()), self.look))
+                    .on_line(self.lexer.lineno()),
+            )
         }
     }
     fn peek(&mut self) -> Token {
@@ -169,8 +162,8 @@ impl Parser {
             .parse::<f64>()
             .expect(&format!("Unable to parse real num string: {}", num_str))
     }
-    fn pitch(&mut self) -> f64 {
-        if self.look.0 == NoteString {
+    fn pitch(&mut self) -> SonnyResult<f64> {
+        Ok(if self.look.0 == NoteString {
             let pitch = string_to_pitch(&self.look.1);
             self.mat(NoteString);
             pitch
@@ -180,12 +173,8 @@ impl Parser {
             self.mas("_");
             0.0
         } else {
-            panic!(
-                "Invalid pitch {:?} on line {}",
-                self.look.1,
-                self.lexer.lineno()
-            );
-        }
+            return Err(Error::new(InvalidPitch(self.look)).on_line(self.lexer.lineno()));
+        })
     }
     fn dots(&mut self) -> usize {
         let mut result = 0;
@@ -195,18 +184,18 @@ impl Parser {
         }
         result
     }
-    fn duration(&mut self) -> f64 {
-        if self.look.0 == Num {
+    fn duration(&mut self) -> SonnyResult<f64> {
+        Ok(if self.look.0 == Num {
             if self.peek().1 == "/" {
                 let num1 = self.look.1.parse::<f64>().expect(&format!(
-                    "Unable to parse duration num {:?} on line {}",
+                    "Unable to parse duration num {:?} on line {:?}",
                     self.look.1,
                     self.lexer.lineno(),
                 ));
                 self.mat(Num);
                 self.mas("/");
                 let num2 = self.look.1.parse::<f64>().expect(&format!(
-                    "Unable to parse duration num {:?} on line {}",
+                    "Unable to parse duration num {:?} on line {:?}",
                     self.look.1,
                     self.lexer.lineno(),
                 ));
@@ -223,68 +212,62 @@ impl Parser {
                 "e" => 0.125,
                 "s" => 0.0625,
                 "ts" => 0.03125,
-                _ => panic!("Expected note duration quantifier, found {:?}", self.look),
+                _ => {
+                    return Err(Error::new(DurationQuantifier(self.look)).on_line(self.lexer.lineno()))
+                }
             } / (self.builder.tempo / 60.0) * 4.0;
             self.mat(Keyword);
             for i in 0..self.dots() {
                 frac += frac / 2usize.pow(i as u32 + 1) as f64;
             }
             frac
-        }
+        })
     }
     fn look_num_note(&self) -> bool {
         self.look.0 == NoteString || self.look.0 == Num || self.look.1 == "_"
     }
-    fn note(&mut self) -> Note {
-        let pitch = self.pitch();
+    fn note(&mut self) -> SonnyResult<Note> {
+        let pitch = self.pitch()?;
         self.mas(":");
-        let duration = self.duration();
+        let duration = self.duration()?;
         self.curr_time += duration;
-        Note {
+        Ok(Note {
             pitch,
             period: Period {
                 start: self.curr_time - duration,
                 end: self.curr_time,
             },
-        }
+        })
     }
-    fn notes(&mut self) -> Vec<Note> {
+    fn notes(&mut self) -> SonnyResult<Vec<Note>> {
         let mut note_list = Vec::new();
-        if self.look_num_note() {
-            note_list.push(self.note());
-            while self.look.1 == "," {
-                self.mas(",");
-                note_list.push(self.note());
-            }
+        note_list.push(self.note()?);
+        while self.look.1 == "," {
+            self.mas(",");
+            note_list.push(self.note()?);
         }
         self.curr_time = 0.0;
-        note_list
+        Ok(note_list)
     }
-    fn backlink(&mut self) -> Operand {
+    fn backlink(&mut self) -> SonnyResult<Operand> {
         self.mas("!");
         let op = Operand::BackLink(if let Ok(x) = self.look.1.parse() {
             x
         } else {
-            panic!(
-                "Invalid backlink number \"{}\" on line {}",
-                self.look.1,
-                self.lexer.lineno()
-            )
+            return Err(Error::new(InvalidBackLink(self.look)).on_line(self.lexer.lineno()));
         });
         self.mat(Num);
-        op
+        Ok(op)
     }
-    fn term(&mut self) -> Operand {
-        match self.look.0 {
+    fn term(&mut self) -> SonnyResult<Operand> {
+        Ok(match self.look.0 {
             Num => Operand::Num(self.real()),
             Keyword => {
                 let op = match self.look.1.as_str() {
                     "time" => Operand::Time,
-                    _ => panic!(
-                        "Keyword term {:?} is invalid on line {}",
-                        self.look.1,
-                        self.lexer.lineno()
-                    ),
+                    _ => {
+                        return Err(Error::new(InvalidKeyword(self.look.1)).on_line(self.lexer.lineno()))
+                    }
                 };
                 self.mat(Keyword);
                 op
@@ -304,21 +287,14 @@ impl Parser {
                         self.mas("dur");
                         Operand::Property(ChainName::String(id), Property::Duration)
                     } else {
-                        panic!("Expected property, found {:?}", self.look);
+                        return Err(Error::new(ExpectedNotesProperty(self.look))
+                            .on_line(self.lexer.lineno()));
                     }
                 } else {
                     Operand::Id(ChainName::String(id))
                 }
             }
-            Misc => if self.look.1 == "!" {
-                self.backlink()
-            } else {
-                panic!(
-                    "Misc term {:?} is invalid on line {}",
-                    self.look.1,
-                    self.lexer.lineno()
-                );
-            },
+            BackLink => self.backlink()?,
             Delimeter => {
                 if self.look.1 == "(" {
                     self.mas("(");
@@ -327,7 +303,7 @@ impl Parser {
                     self.mas(")");
                     Operand::Expression(Box::new(expr))
                 } else {
-                    panic!("Invalid delimeter on line {}", self.lexer.lineno());
+                    return Err(Error::new(InvalidDelimeter(self.look.1)).on_line(self.lexer.lineno()));
                 }
             }
             NoteString => {
@@ -335,141 +311,137 @@ impl Parser {
                 self.mat(NoteString);
                 note
             }
-            _ => panic!(
-                "Invalid term {:?} on line {}",
-                self.look.1,
-                self.lexer.lineno()
-            ),
-        }
+            _ => return Err(Error::new(InvalidTerm(self.look)).on_line(self.lexer.lineno())),
+        })
     }
-    fn exp_un(&mut self) -> Expression {
-        if &self.look.1 == "-" {
+    fn exp_un(&mut self) -> SonnyResult<Expression> {
+        Ok(if &self.look.1 == "-" {
             self.mas("-");
             Expression::new(Operation::Negate(Operand::Expression(Box::new(
-                self.exp_un(),
+                self.exp_un()?,
             ))))
         } else if &self.look.1 == "sin" {
             self.mas("sin");
             Expression::new(Operation::Sine(Operand::Expression(Box::new(
-                self.exp_un(),
+                self.exp_un()?,
             ))))
         } else if &self.look.1 == "cos" {
             self.mas("cos");
             Expression::new(Operation::Cosine(Operand::Expression(Box::new(
-                self.exp_un(),
+                self.exp_un()?,
             ))))
         } else if &self.look.1 == "ceil" {
             self.mas("ceil");
             Expression::new(Operation::Ceiling(Operand::Expression(Box::new(
-                self.exp_un(),
+                self.exp_un()?,
             ))))
         } else if &self.look.1 == "floor" {
             self.mas("floor");
             Expression::new(Operation::Floor(Operand::Expression(Box::new(
-                self.exp_un(),
+                self.exp_un()?,
             ))))
         } else if &self.look.1 == "abs" {
             self.mas("abs");
             Expression::new(Operation::AbsoluteValue(Operand::Expression(Box::new(
-                self.exp_un(),
+                self.exp_un()?,
             ))))
         } else {
-            Expression::new(Operation::Operand(self.term()))
-        }
+            Expression::new(Operation::Operand(self.term()?))
+        })
     }
-    fn exp_min_max(&mut self) -> Expression {
-        let mut expr = self.exp_un();
+    fn exp_min_max(&mut self) -> SonnyResult<Expression> {
+        let mut expr = self.exp_un()?;
         loop {
             if self.look.1 == "min" {
                 self.mas("min");
                 expr = Expression::new(Operation::Min(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_un())),
+                    Operand::Expression(Box::new(self.exp_un()?)),
                 ));
             } else if self.look.1 == "max" {
                 self.mas("max");
                 expr = Expression::new(Operation::Max(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_un())),
+                    Operand::Expression(Box::new(self.exp_un()?)),
                 ));
             } else {
                 break;
             }
         }
-        expr
+        Ok(expr)
     }
-    fn exp_pow(&mut self) -> Expression {
-        let mut expr = self.exp_min_max();
+    fn exp_pow(&mut self) -> SonnyResult<Expression> {
+        let mut expr = self.exp_min_max()?;
         loop {
             if self.look.1 == "^" {
                 self.mas("^");
                 expr = Expression::new(Operation::Power(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_min_max())),
+                    Operand::Expression(Box::new(self.exp_min_max()?)),
                 ));
             } else if self.look.1 == "log" {
                 self.mas("log");
                 expr = Expression::new(Operation::Logarithm(Operand::Expression(Box::new(
-                    self.exp_pow(),
+                    self.exp_pow()?,
                 ))));
             } else {
                 break;
             }
         }
-        expr
+        Ok(expr)
     }
-    fn exp_mul(&mut self) -> Expression {
-        let mut expr = self.exp_pow();
+    fn exp_mul(&mut self) -> SonnyResult<Expression> {
+        let mut expr = self.exp_pow()?;
         loop {
             if self.look.1 == "*" {
                 self.mas("*");
                 expr = Expression::new(Operation::Multiply(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_mul())),
+                    Operand::Expression(Box::new(self.exp_pow()?)),
                 ));
             } else if self.look.1 == "/" {
                 self.mas("/");
                 expr = Expression::new(Operation::Divide(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_mul())),
+                    Operand::Expression(Box::new(self.exp_pow()?)),
                 ));
             } else if self.look.1 == "%" {
                 self.mas("%");
                 expr = Expression::new(Operation::Remainder(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_mul())),
+                    Operand::Expression(Box::new(self.exp_pow()?)),
                 ));
             } else {
                 break;
             }
         }
-        expr
+        Ok(expr)
     }
-    fn exp_add(&mut self) -> Expression {
-        let mut expr = self.exp_mul();
+    fn exp_add(&mut self) -> SonnyResult<Expression> {
+        let mut expr = self.exp_mul()?;
         loop {
             if self.look.1 == "+" {
                 self.mas("+");
                 expr = Expression::new(Operation::Add(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_mul())),
+                    Operand::Expression(Box::new(self.exp_mul()?)),
                 ));
             } else if self.look.1 == "-" {
                 self.mas("-");
                 expr = Expression::new(Operation::Subtract(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_mul())),
+                    Operand::Expression(Box::new(self.exp_mul()?)),
                 ));
             } else {
                 break;
             }
         }
-        expr
+        Ok(expr)
     }
-    fn expression(&mut self) -> Expression {
+    fn expression(&mut self) -> SonnyResult<Expression> {
         self.exp_add()
     }
-    fn period(&mut self) -> Period {
+    fn period(&mut self) -> SonnyResult<Period> {
         let mut period = Period {
             start: 0.0,
             end: f64::MAX,
@@ -484,11 +456,9 @@ impl Parser {
                 {
                     chain.period
                 } else {
-                    panic!(
-                        "Chain {} cannot be found on line {}",
-                        self.look.1,
-                        self.lexer.lineno()
-                    );
+                    return Err(Error::new(PeriodCantFindChain(ChainName::String(
+                        self.look.1.clone(),
+                    ))).on_line(self.lexer.lineno()));
                 };
                 self.mat(Id);
                 self.mas(".");
@@ -500,7 +470,7 @@ impl Parser {
                     self.mas("end");
                 }
             } else if self.look.0 == Num {
-                period.start = self.duration();
+                period.start = self.duration()?;
             }
             self.mas(":");
             if self.look.1 == "end" {
@@ -511,11 +481,9 @@ impl Parser {
                 {
                     chain.period
                 } else {
-                    panic!(
-                        "Chain {} cannot be found on line {}",
-                        self.look.1,
-                        self.lexer.lineno()
-                    );
+                    return Err(Error::new(PeriodCantFindChain(ChainName::String(
+                        self.look.1.clone(),
+                    ))).on_line(self.lexer.lineno()));
                 };
                 self.mat(Id);
                 self.mas(".");
@@ -527,12 +495,12 @@ impl Parser {
                     self.mas("end");
                 }
             } else if self.look.0 == Num {
-                period.end = self.duration();
+                period.end = self.duration()?;
             }
             self.mas("]");
         }
         self.curr_time = period.start;
-        period
+        Ok(period)
     }
     fn link(&mut self) {
         if self.look.1 == "|" {
