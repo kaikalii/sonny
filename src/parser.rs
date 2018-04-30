@@ -70,14 +70,32 @@ impl Parser {
         }
     }
     pub fn parse(mut self) -> Builder {
+        // Parse everything into chains
         while self.look.0 != Done {
             self.chain_declaration();
         }
+        // After main parsing is done, fix Time::Notes in periods
+        for chain in self.builder.chains.values_mut() {
+            if let Time::Notes = chain.period.end {
+                chain.period.end = if let Operation::Operand(Operand::Notes(ref notes)) =
+                    chain.links[0].operation
+                {
+                    if let Some(ref note) = notes.last() {
+                        note.period.end
+                    } else {
+                        panic!("Notes are empty");
+                    }
+                } else {
+                    panic!("Chains marked with the \"notes\" period end must begin with only a list of notes.");
+                };
+            }
+        }
+
         self.builder
     }
     fn mat(&mut self, t: TokenType) {
         if self.look.0 == t {
-            println!("Expected {:?}, found {:?}", t, self.look.1);
+            // println!("Expected {:?}, found {:?}", t, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
@@ -98,7 +116,7 @@ impl Parser {
     }
     fn mas(&mut self, s: &str) {
         if &self.look.1 == s {
-            println!("Expected {:?}, found {:?}", s, self.look.1);
+            // println!("Expected {:?}, found {:?}", s, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
@@ -464,6 +482,9 @@ impl Parser {
             self.mas(":");
             if self.look.1 == "end" {
                 self.mas("end");
+            } else if self.look.1 == "notes" {
+                self.mas("notes");
+                period.end = Time::Notes;
             } else {
                 period.end = Time::Absolute(self.duration());
             }

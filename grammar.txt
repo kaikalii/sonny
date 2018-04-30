@@ -43,7 +43,7 @@ id -> letter id_chars
 period -> [ duration : duration ]
 	| \0
 
-built_in -> start | end | length
+built_in -> start | end | length | notes
 
 global -> sample_rate | time
 

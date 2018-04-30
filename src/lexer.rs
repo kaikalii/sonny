@@ -14,6 +14,7 @@ static KEYWORDS: &[&'static str] = &[
     "log",
     "end",
     "out",
+    "notes",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]

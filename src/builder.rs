@@ -49,11 +49,12 @@ impl Operation {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Time {
     Absolute(f64),
     Start,
     End,
+    Notes,
 }
 
 impl Time {
@@ -61,7 +62,7 @@ impl Time {
         match *self {
             Time::Absolute(a) => a,
             Time::Start => 0.0,
-            Time::End => f64::MAX,
+            Time::End | Time::Notes => f64::MAX,
         }
     }
 }
@@ -149,10 +150,6 @@ impl Builder {
             period: Period::forever(),
             play: false,
         });
-        println!(
-            "added new chain .. there are now {} chains waiting",
-            self.curr_chains.len()
-        );
     }
     pub fn finalize_chain(&mut self, name: Option<String>) -> ChainName {
         let mut chain = self.curr_chains.pop().expect("No chain to finalize");
@@ -168,11 +165,6 @@ impl Builder {
                 .insert(ChainName::Anonymous(self.next_anon_chain), chain);
             self.next_anon_chain += 1;
         }
-        println!(
-            "Finalized chain {:?} .. {} chains left waiting",
-            chain_name,
-            self.curr_chains.len()
-        );
         chain_name
     }
     pub fn chain_period(&mut self, period: Period) {
