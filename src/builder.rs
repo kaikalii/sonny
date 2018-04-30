@@ -4,7 +4,7 @@ use std::f64;
 #[derive(Debug, Clone)]
 pub enum Operand {
     Num(f64),
-    Id(String),
+    Id(ChainName),
     BackLink(usize),
     Time,
     Notes(Vec<Note>),
@@ -149,18 +149,31 @@ impl Builder {
             period: Period::forever(),
             play: false,
         });
+        println!(
+            "added new chain .. there are now {} chains waiting",
+            self.curr_chains.len()
+        );
     }
-    pub fn finalize_chain(&mut self, name: Option<String>) {
+    pub fn finalize_chain(&mut self, name: Option<String>) -> ChainName {
         let mut chain = self.curr_chains.pop().expect("No chain to finalize");
+        let chain_name;
         if let Some(n) = name {
             chain.name = ChainName::String(n.clone());
+            chain_name = chain.name.clone();
             self.chains.insert(ChainName::String(n), chain);
         } else {
             chain.name = ChainName::Anonymous(self.next_anon_chain);
+            chain_name = chain.name.clone();
             self.chains
                 .insert(ChainName::Anonymous(self.next_anon_chain), chain);
             self.next_anon_chain += 1;
         }
+        println!(
+            "Finalized chain {:?} .. {} chains left waiting",
+            chain_name,
+            self.curr_chains.len()
+        );
+        chain_name
     }
     pub fn chain_period(&mut self, period: Period) {
         if let Some(ref mut chain) = self.curr_chains.last_mut() {
@@ -180,7 +193,7 @@ impl Builder {
         if let Some(ref mut chain) = self.curr_chains.last_mut() {
             chain.links.push(expression);
         } else {
-            panic!("No current chain add expressions to");
+            panic!("No current chain to add expressions to");
         }
     }
 }

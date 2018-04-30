@@ -51,6 +51,7 @@ pub struct Parser {
     peeked: bool,
     sample_rate: f64,
     curr_time: f64,
+    paren_level: usize,
 }
 
 impl Parser {
@@ -65,19 +66,18 @@ impl Parser {
             peeked: false,
             sample_rate: 44100.0,
             curr_time: 0.0,
+            paren_level: 0,
         }
     }
     pub fn parse(mut self) -> Builder {
         while self.look.0 != Done {
-            self.builder.new_chain();
-            let chain_name = self.chain_declaration();
-            self.builder.finalize_chain(chain_name);
+            self.chain_declaration();
         }
         self.builder
     }
     fn mat(&mut self, t: TokenType) {
         if self.look.0 == t {
-            // println!("Expected {:?}, found {:?}", t, self.look.1);
+            println!("Expected {:?}, found {:?}", t, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
@@ -98,12 +98,21 @@ impl Parser {
     }
     fn mas(&mut self, s: &str) {
         if &self.look.1 == s {
-            // println!("Expected {:?}, found {:?}", s, self.look.1);
+            println!("Expected {:?}, found {:?}", s, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
             } else {
                 self.look = self.lexer.lex();
+            }
+            if s == "(" {
+                self.paren_level += 1;
+            } else if s == ")" {
+                if self.paren_level > 0 {
+                    self.paren_level -= 1;
+                } else {
+                    panic!("Incorrect close delimeter on line {}", self.lexer.lineno());
+                }
             }
         } else {
             println!(
@@ -274,7 +283,7 @@ impl Parser {
             Id => {
                 let id = self.look.1.clone();
                 self.mat(Id);
-                Operand::Id(id)
+                Operand::Id(ChainName::String(id))
             }
             Misc => if self.look.1 == "!" {
                 self.backlink()
@@ -289,6 +298,7 @@ impl Parser {
                 if self.look.1 == "(" {
                     self.mas("(");
                     let expr = self.expression();
+
                     self.mas(")");
                     Operand::Expression(Box::new(expr))
                 } else if self.look.1 == "{" {
@@ -467,8 +477,16 @@ impl Parser {
         period
     }
     fn link(&mut self) {
-        let expr = self.expression();
-        self.builder.new_expression(expr);
+        if self.look.1 == "|" {
+            self.mas("|");
+            let name = self.chain_declaration();
+            self.mas("|");
+            self.builder
+                .new_expression(Expression::new(Operation::Operand(Operand::Id(name))))
+        } else {
+            let expr = self.expression();
+            self.builder.new_expression(expr);
+        }
     }
     fn chain(&mut self) {
         self.link();
@@ -482,7 +500,8 @@ impl Parser {
             }
         }
     }
-    fn chain_declaration(&mut self) -> Option<String> {
+    fn chain_declaration(&mut self) -> ChainName {
+        self.builder.new_chain();
         let mut name = None;
         let mut need_colon = false;
         if self.look.0 == Id && self.peek().1 == "[" || self.peek().1 == ":" {
@@ -499,6 +518,6 @@ impl Parser {
             self.mas(":");
         }
         self.chain();
-        name
+        self.builder.finalize_chain(name)
     }
 }

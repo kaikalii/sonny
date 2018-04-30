@@ -18,7 +18,7 @@ fn main() {
     if args.len() >= 2 {
         let parser = Parser::new(&args[1]);
         let builder = parser.parse();
-        println!("Parse complete");
+        // println!("Parse complete");
         // println!("{:#?}", builder);
         let functions = Functions::new(builder);
         write(functions, 4000.0);

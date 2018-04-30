@@ -86,7 +86,7 @@ exp_add -> exp_mul + exp_add
 expression -> exp_add
 
 link -> expression
-	| ( chain_declaration )
+	| |chain_declaration|
 
 chain -> link -> chain
 	| link

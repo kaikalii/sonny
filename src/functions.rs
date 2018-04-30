@@ -22,13 +22,13 @@ impl Functions {
             functions: HashMap::new(),
         };
         f.make_functions();
-        println!(
-            "functions: {:?}",
-            (f.functions
-                .iter()
-                .map(|f| (f.0.clone(), f.1.true_args.clone()))
-                .collect::<Vec<(ChainName, Vec<HashSet<usize>>)>>())
-        );
+        // println!(
+        //     "functions: {:?}",
+        //     (f.functions
+        //         .iter()
+        //         .map(|f| (f.0.clone(), f.1.true_args.clone()))
+        //         .collect::<Vec<(ChainName, Vec<HashSet<usize>>)>>())
+        // );
         f
     }
     fn collect_args(&mut self, expression: &Expression) -> HashSet<usize> {
@@ -37,15 +37,14 @@ impl Functions {
         use Operand::*;
         match *operands.0 {
             Id(ref id) => {
-                let key = ChainName::String(id.clone());
-                if !self.functions.contains_key(&key) {
-                    if !self.builder.chains.contains_key(&key) {
-                        panic!("No known id: {:?}", key);
+                if !self.functions.contains_key(id) {
+                    if !self.builder.chains.contains_key(id) {
+                        panic!("No known id: {:?}", id);
                     }
-                    let chain = self.builder.chains[&key].clone();
+                    let chain = self.builder.chains[id].clone();
                     self.make_function(chain);
                 }
-                args = args.union(self.functions[&key].true_args.last().unwrap())
+                args = args.union(self.functions[id].true_args.last().unwrap())
                     .cloned()
                     .collect();
             }
@@ -60,16 +59,12 @@ impl Functions {
         if let Some(op) = operands.1 {
             match *op {
                 Id(ref id) => {
-                    if !self.functions.contains_key(&ChainName::String(id.clone())) {
-                        let chain = self.builder.chains[&ChainName::String(id.clone())].clone();
+                    if !self.functions.contains_key(id) {
+                        let chain = self.builder.chains[id].clone();
                         self.make_function(chain);
                     }
-                    args = args.union(
-                        self.functions[&ChainName::String(id.clone())]
-                            .true_args
-                            .last()
-                            .unwrap(),
-                    ).cloned()
+                    args = args.union(self.functions[id].true_args.last().unwrap())
+                        .cloned()
                         .collect();
                 }
                 Expression(ref expr) => {
@@ -134,7 +129,7 @@ impl Functions {
         use Operand::*;
         match *operand {
             Num(x) => x,
-            Id(ref id) => self.evaluate_function(&ChainName::String(id.clone()), args, time, depth),
+            Id(ref id) => self.evaluate_function(id, args, time, depth),
             Time => time,
             BackLink(num) => args[num - 1],
             Notes(ref notes) => {

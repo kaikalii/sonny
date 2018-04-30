@@ -142,7 +142,7 @@ impl Lexer {
             else {
                 token.push(c);
                 match c {
-                    '(' | ')' | '{' | '}' | '[' | ']' | ',' => return Token(Delimeter, token),
+                    '(' | ')' | '{' | '}' | '[' | ']' | '|' | ',' => return Token(Delimeter, token),
                     ':' => {
                         if let Some(c) = self.get_char() {
                             if c == ':' {
