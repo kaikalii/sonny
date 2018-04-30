@@ -51,7 +51,7 @@ period_ends -> duration
 period -> [ period_ends : period_ends ]
 	| \0
 
-built_in -> start | end | length | notes
+built_in -> start | end | dur | prev | next
 
 global -> sample_rate | time
 

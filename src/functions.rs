@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::f64;
 
-use builder::{self, *};
+use builder::*;
 
 #[derive(Debug, Clone)]
 pub struct FunctionDef {
@@ -130,12 +130,51 @@ impl Functions {
         match *operand {
             Num(x) => x,
             Id(ref id) => self.evaluate_function(id, args, time, depth),
+            Property(ref id, property) => if let Some(chain) = self.builder.chains.get(id) {
+                if let Operation::Operand(Operand::Notes(ref notes)) = chain.links[0].operation {
+                    use builder::Property::*;
+                    if time < notes.first().unwrap().period.start {
+                        time - notes.first().unwrap().period.start
+                    } else if time >= notes.last().unwrap().period.end {
+                        notes.last().unwrap().period.end - time
+                    } else {
+                        match property {
+                            Start => {
+                                notes
+                                    .iter()
+                                    .find(|n| n.period.contains(time))
+                                    .unwrap()
+                                    .period
+                                    .start
+                            }
+                            End => {
+                                notes
+                                    .iter()
+                                    .find(|n| n.period.contains(time))
+                                    .unwrap()
+                                    .period
+                                    .end
+                            }
+                            Duration => notes
+                                .iter()
+                                .find(|n| n.period.contains(time))
+                                .unwrap()
+                                .period
+                                .duration(),
+                        }
+                    }
+                } else {
+                    panic!("Reference chain is not a note chain");
+                }
+            } else {
+                panic!("Unknown id {:?}", id)
+            },
             Time => time,
             BackLink(num) => args[num - 1],
             Notes(ref notes) => {
                 let mut result = 0.0;
                 for note in notes {
-                    if note.period.contains(builder::Time::Absolute(time)) {
+                    if note.period.contains(time) {
                         result = note.pitch;
                         break;
                     }
@@ -199,11 +238,7 @@ impl Functions {
             //     args
             // );
         }
-        if self.functions[name]
-            .chain
-            .period
-            .contains(Time::Absolute(time))
-        {
+        if self.functions[name].chain.period.contains(time) {
             let mut results = Vec::new();
             for (_i, expression) in self.functions[name].chain.links.iter().enumerate() {
                 // if time == 0.0 {

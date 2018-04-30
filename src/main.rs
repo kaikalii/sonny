@@ -1,3 +1,4 @@
+extern crate either;
 extern crate hound;
 
 #[macro_use]
@@ -29,10 +30,9 @@ fn write(functions: Functions, sample_rate: f64) {
     // TODO: make this get done on a per-outchain basis
     let mut end = f64::MAX;
     for chain in functions.functions.values().map(|f| &f.chain) {
-        if let Time::Absolute(t) = chain.period.end {
-            if t.lt(&end) && end == f64::MAX || t.gt(&end) && end != f64::MAX {
-                end = t;
-            }
+        let t = chain.period.end;
+        if (t.lt(&end) && end == f64::MAX) || (t.gt(&end) && t != f64::MAX) {
+            end = t;
         }
     }
     if end == f64::MAX {

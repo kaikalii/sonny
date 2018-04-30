@@ -2,19 +2,7 @@ use std::fs::File;
 use std::io::Read;
 
 static KEYWORDS: &[&'static str] = &[
-    "time",
-    "sample_rate",
-    "sin",
-    "cos",
-    "ceil",
-    "floor",
-    "abs",
-    "min",
-    "max",
-    "log",
-    "end",
-    "out",
-    "notes",
+    "time", "sin", "cos", "ceil", "floor", "abs", "min", "max", "log", "end", "out", "dur",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]

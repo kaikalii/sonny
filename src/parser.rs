@@ -1,3 +1,5 @@
+use std::f64;
+
 use builder::*;
 use lexer::TokenType::*;
 use lexer::*;
@@ -127,30 +129,6 @@ impl Parser {
             panic!("Bailing due to error.");
         }
     }
-    // fn match_many(&mut self, t: &[Token]) -> Token {
-    //     if let Some(token) = t.iter().find(|&x| x == &self.look) {
-    //         // println!(
-    //         //     "Expected {:?}, found {:?}",
-    //         //     t.iter().map(|x| x.1.clone()).collect::<Vec<String>>(),
-    //         //     self.look.1
-    //         // );
-    //         if self.peeked {
-    //             self.peeked = false;
-    //             self.look = self.next.clone();
-    //         } else {
-    //             self.look = self.lexer.lex();
-    //         }
-    //         token.clone()
-    //     } else {
-    //         println!(
-    //             "Expcted {:?} , found {:?} on line {}",
-    //             t,
-    //             self.look,
-    //             self.lexer.lineno()
-    //         );
-    //         panic!("Bailing due to error.");
-    //     }
-    // }
     fn peek(&mut self) -> Token {
         if !self.peeked {
             self.peeked = true;
@@ -236,8 +214,8 @@ impl Parser {
         Note {
             pitch,
             period: Period {
-                start: Time::Absolute(self.curr_time - duration),
-                end: Time::Absolute(self.curr_time),
+                start: self.curr_time - duration,
+                end: self.curr_time,
             },
         }
     }
@@ -285,7 +263,23 @@ impl Parser {
             Id => {
                 let id = self.look.1.clone();
                 self.mat(Id);
-                Operand::Id(ChainName::String(id))
+                if self.look.1 == "." {
+                    self.mas(".");
+                    if self.look.1 == "start" {
+                        self.mas("start");
+                        Operand::Property(ChainName::String(id), Property::Start)
+                    } else if self.look.1 == "end" {
+                        self.mas("end");
+                        Operand::Property(ChainName::String(id), Property::End)
+                    } else if self.look.1 == "dur" {
+                        self.mas("dur");
+                        Operand::Property(ChainName::String(id), Property::Duration)
+                    } else {
+                        panic!("Expected property, found {:?}", self.look);
+                    }
+                } else {
+                    Operand::Id(ChainName::String(id))
+                }
             }
             Misc => if self.look.1 == "!" {
                 self.backlink()
@@ -453,8 +447,8 @@ impl Parser {
     }
     fn period(&mut self) -> Period {
         let mut period = Period {
-            start: Time::Start,
-            end: Time::End,
+            start: 0.0,
+            end: f64::MAX,
         };
         if self.look.1 == "[" {
             self.mas("[");
@@ -482,7 +476,7 @@ impl Parser {
                     self.mas("end");
                 }
             } else if self.look.0 == Num {
-                period.start = Time::Absolute(self.duration());
+                period.start = self.duration();
             }
             self.mas(":");
             if self.look.1 == "end" {
@@ -509,15 +503,11 @@ impl Parser {
                     self.mas("end");
                 }
             } else if self.look.0 == Num {
-                period.end = Time::Absolute(self.duration());
+                period.end = self.duration();
             }
             self.mas("]");
         }
-        self.curr_time = if let Time::Absolute(x) = period.start {
-            x
-        } else {
-            0.0
-        };
+        self.curr_time = period.start;
         period
     }
     fn link(&mut self) {

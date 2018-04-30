@@ -5,3 +5,4 @@ authors = ["Kai Schmidt <kaikaliischmidt@gmail.com>"]
 
 [dependencies]
 hound = "*"
+either = "*"

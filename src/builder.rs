@@ -1,10 +1,18 @@
 use std::collections::HashMap;
 use std::f64;
 
+#[derive(Debug, Clone, Copy)]
+pub enum Property {
+    Start,
+    End,
+    Duration,
+}
+
 #[derive(Debug, Clone)]
 pub enum Operand {
     Num(f64),
     Id(ChainName),
+    Property(ChainName, Property),
     BackLink(usize),
     Time,
     Notes(Vec<Note>),
@@ -49,39 +57,24 @@ impl Operation {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Time {
-    Absolute(f64),
-    Start,
-    End,
-}
-
-impl Time {
-    pub fn to_f64(&self) -> f64 {
-        match *self {
-            Time::Absolute(a) => a,
-            Time::Start => 0.0,
-            Time::End => f64::MAX,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct Period {
-    pub start: Time,
-    pub end: Time,
+    pub start: f64,
+    pub end: f64,
 }
 
 impl Period {
-    pub fn contains(&self, time: Time) -> bool {
-        time.to_f64().ge(&self.start.to_f64())
-            && (time.to_f64().lt(&self.end.to_f64()) || self.end == Time::End && time == Time::End)
+    pub fn contains(&self, time: f64) -> bool {
+        self.start <= time && time < self.end
     }
     pub fn forever() -> Period {
         Period {
-            start: Time::Start,
-            end: Time::End,
+            start: 0.0,
+            end: f64::MAX,
         }
+    }
+    pub fn duration(&self) -> f64 {
+        self.end - self.start
     }
 }
 
@@ -156,7 +149,7 @@ impl Builder {
         // Fix chain period endings of notes chains
         if let Operation::Operand(Operand::Notes(ref notes)) = chain.links[0].operation {
             if let Some(ref note) = notes.last() {
-                if let Time::End = chain.period.end {
+                if chain.period.end == f64::MAX {
                     chain.period.end = note.period.end;
                 }
             } else {
