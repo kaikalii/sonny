@@ -2,7 +2,8 @@ use std::fs::File;
 use std::io::Read;
 
 static KEYWORDS: &[&'static str] = &[
-    "time", "sin", "cos", "ceil", "floor", "abs", "min", "max", "log", "end", "out", "dur",
+    "time", "sin", "cos", "ceil", "floor", "abs", "min", "max", "log", "end", "out", "dur", "w",
+    "h", "q", "e", "s", "ts",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -142,7 +143,7 @@ impl Lexer {
                             return Token(Delimeter, token);
                         }
                     }
-                    '!' | '.' => return Token(Misc, token),
+                    '!' | '.' | '_' => return Token(Misc, token),
                     '+' | '*' | '%' | '^' => return Token(Operator, token),
                     '-' => {
                         if let Some(c) = self.get_char() {

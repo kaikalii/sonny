@@ -23,6 +23,16 @@ pitch -> note_notation
 	| real
 	| _
 
+dots -> . dots
+	| \0
+
+easy_duration -> w dots
+	| h dots
+	| q dots
+	| e dots
+	| s dots
+	| t dots
+
 duration -> num / num
 	| real
 
@@ -51,9 +61,9 @@ period_ends -> duration
 period -> [ period_ends : period_ends ]
 	| \0
 
-built_in -> start | end | dur | prev | next
+built_in -> start | end | dur
 
-global -> sample_rate | time
+global -> time
 
 backlink -> ! num
 

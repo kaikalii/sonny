@@ -171,6 +171,9 @@ impl Parser {
             pitch
         } else if self.look.0 == Num {
             self.real()
+        } else if self.look.1 == "_" {
+            self.mas("_");
+            0.0
         } else {
             panic!(
                 "Invalid pitch {:?} on line {}",
@@ -178,6 +181,14 @@ impl Parser {
                 self.lexer.lineno()
             );
         }
+    }
+    fn dots(&mut self) -> usize {
+        let mut result = 0;
+        while self.look.1 == "." {
+            self.mas(".");
+            result += 1;
+        }
+        result
     }
     fn duration(&mut self) -> f64 {
         if self.look.0 == Num {
@@ -200,11 +211,24 @@ impl Parser {
                 self.real()
             }
         } else {
-            panic!("Invalid duration on line {}", self.lexer.lineno());
+            let mut frac = match self.look.1.as_ref() {
+                "w" => 1.0,
+                "h" => 0.5,
+                "q" => 0.25,
+                "e" => 0.125,
+                "s" => 0.0625,
+                "ts" => 0.03125,
+                _ => panic!("Expected note duration quantifier, found {:?}", self.look),
+            } / (self.builder.tempo / 60.0) * 4.0;
+            self.mat(Keyword);
+            for i in 0..self.dots() {
+                frac += frac / 2usize.pow(i as u32 + 1) as f64;
+            }
+            frac
         }
     }
     fn look_num_note(&self) -> bool {
-        self.look.0 == NoteString || self.look.0 == Num
+        self.look.0 == NoteString || self.look.0 == Num || self.look.1 == "_"
     }
     fn note(&mut self) -> Note {
         let pitch = self.pitch();
