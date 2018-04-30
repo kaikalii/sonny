@@ -36,16 +36,16 @@ impl Functions {
         use Operand::*;
         match *operands.0 {
             Id(ref id) => {
-                if !self.functions.contains_key(&ChainName::String(id.clone())) {
-                    let chain = self.builder.chains[&ChainName::String(id.clone())].clone();
+                let key = ChainName::String(id.clone());
+                if !self.functions.contains_key(&key) {
+                    if !self.builder.chains.contains_key(&key) {
+                        panic!("No known id: {:?}", key);
+                    }
+                    let chain = self.builder.chains[&key].clone();
                     self.make_function(chain);
                 }
-                args = args.union(
-                    self.functions[&ChainName::String(id.clone())]
-                        .true_args
-                        .last()
-                        .unwrap(),
-                ).cloned()
+                args = args.union(self.functions[&key].true_args.last().unwrap())
+                    .cloned()
                     .collect();
             }
             Expression(ref expr) => {
@@ -128,11 +128,12 @@ impl Functions {
         name: &ChainName,
         args: &[f64],
         time: f64,
+        depth: usize,
     ) -> f64 {
         use Operand::*;
         match *operand {
             Num(x) => x,
-            Id(ref id) => self.evaluate_function(&ChainName::String(id.clone()), args, time),
+            Id(ref id) => self.evaluate_function(&ChainName::String(id.clone()), args, time, depth),
             Time => time,
             BackLink(num) => args[num - 1],
             Notes(ref notes) => {
@@ -145,7 +146,9 @@ impl Functions {
                 }
                 result
             }
-            Expression(ref expression) => self.evaluate_expression(expression, name, args, time),
+            Expression(ref expression) => {
+                self.evaluate_expression(expression, name, args, time, depth)
+            }
         }
     }
 
@@ -155,11 +158,12 @@ impl Functions {
         name: &ChainName,
         args: &[f64],
         time: f64,
+        depth: usize,
     ) -> f64 {
         use self::Operation::*;
         let (a, b) = expression.operation.operands();
-        let x = self.evaluate_operand(a, name, args, time);
-        let y = b.map(|bb| self.evaluate_operand(bb, name, args, time));
+        let x = self.evaluate_operand(a, name, args, time, depth);
+        let y = b.map(|bb| self.evaluate_operand(bb, name, args, time, depth));
         match expression.operation {
             Add(..) => x + y.unwrap(),
             Subtract(..) => x - y.unwrap(),
@@ -177,15 +181,39 @@ impl Functions {
         }
     }
 
-    pub fn evaluate_function(&self, name: &ChainName, args: &[f64], time: f64) -> f64 {
-        // println!("  Calling function {:?}", name);
+    pub fn evaluate_function(
+        &self,
+        name: &ChainName,
+        args: &[f64],
+        time: f64,
+        depth: usize,
+    ) -> f64 {
+        if time == 0.0 {
+            // println!(
+            //     "{}Calling function {:?}",
+            //     (0..depth).map(|_| ' ').collect::<String>(),
+            //     name
+            // );
+            // println!(
+            //     "{}  with args: {:?}",
+            //     (0..depth).map(|_| ' ').collect::<String>(),
+            //     args
+            // );
+        }
         if self.functions[name]
             .chain
             .period
             .contains(Time::Absolute(time))
         {
             let mut results = Vec::new();
-            for expression in self.functions[name].chain.links.iter() {
+            for (_i, expression) in self.functions[name].chain.links.iter().enumerate() {
+                // if time == 0.0 {
+                //     println!(
+                //         "{}    expression: {}",
+                //         (0..depth).map(|_| ' ').collect::<String>(),
+                //         i
+                //     );
+                // }
                 let mut these_args = Vec::new();
                 for &r in results.iter().rev() {
                     these_args.push(r);
@@ -193,13 +221,24 @@ impl Functions {
                 for &a in args {
                     these_args.push(a);
                 }
-                // println!("  {:?}", expression);
-                // println!("  with args: {:?}", these_args);
-                results.push(self.evaluate_expression(expression, name, &these_args, time));
-                // println!("    result: {}", results.last().unwrap());
+                results.push(self.evaluate_expression(
+                    expression,
+                    name,
+                    &these_args,
+                    time,
+                    depth + 6,
+                ));
             }
+            // if time == 0.0 {
+            //     print!("{}", (0..depth).map(|_| ' ').collect::<String>());
+            //     println!("result: {}", results.last().unwrap());
+            // }
             *results.last().unwrap()
         } else {
+            // if time == 0.0 {
+            //     print!("{}", (0..depth).map(|_| ' ').collect::<String>());
+            //     println!("result: {}", 0.0);
+            // }
             0.0
         }
     }

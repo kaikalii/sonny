@@ -18,9 +18,10 @@ fn main() {
     if args.len() >= 2 {
         let parser = Parser::new(&args[1]);
         let builder = parser.parse();
+        println!("Parse complete");
         // println!("{:#?}", builder);
         let functions = Functions::new(builder);
-        write(functions, 44100.0);
+        write(functions, 10000.0);
     }
 }
 
@@ -38,8 +39,9 @@ fn write(functions: Functions, sample_rate: f64) {
     if end == f64::MAX {
         end = 1.0;
     }
-    println!("end: {}", end);
-
+    // println!("end: {}", end);
+    // let mut last_vis_i = 0;
+    // let mut vis = vec![' '; 100];
     for name in functions
         .functions
         .iter()
@@ -50,13 +52,21 @@ fn write(functions: Functions, sample_rate: f64) {
 
         for (i, mut sample) in song.iter_mut().enumerate() {
             let time = i as f64 / sample_rate;
-            // println!("t = {}", time);
-            *sample = functions.evaluate_function(&name, &[], time);
-            // println!("    {:?}: {}", name, sample);
+            *sample = functions.evaluate_function(&name, &[], time, 0);
+
+            // let vis_i = ((*sample * 50.0 + 50.0) as usize).min(99);
+            // for j in last_vis_i.min(vis_i)..last_vis_i.max(vis_i) {
+            //     vis[j] = '#';
+            // }
+            // println!("{}", vis.iter().collect::<String>());
+            // for j in last_vis_i.min(vis_i)..last_vis_i.max(vis_i) {
+            //     vis[j] = ' ';
+            // }
+            // last_vis_i = vis_i
         }
         let spec = hound::WavSpec {
             channels: 1,
-            sample_rate: 44100,
+            sample_rate: sample_rate as u32,
             bits_per_sample: 16,
             sample_format: hound::SampleFormat::Int,
         };
@@ -64,7 +74,9 @@ fn write(functions: Functions, sample_rate: f64) {
             hound::WavWriter::create(&format!("{}.wav", name.to_string()), spec).unwrap();
         let amplitude = i16::MAX as f64;
         for s in song {
-            writer.write_sample((s * amplitude) as i16).unwrap();
+            writer
+                .write_sample((s * amplitude).min(amplitude) as i16)
+                .unwrap();
         }
     }
 }

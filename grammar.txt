@@ -54,6 +54,7 @@ term -> real
 	| id
 	| backlink
 	| notes
+	| note
 	| ( expression )
 
 exp_un -> - term

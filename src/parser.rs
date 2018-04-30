@@ -6,18 +6,24 @@ fn string_to_pitch(s: &str) -> f64 {
     let bytes = s.as_bytes();
     let letter = bytes[0] as char;
     let mut octave = 3;
-    let accidental: i32 = if bytes[1] as char == '#' {
-        if s.len() == 3 {
-            octave = (bytes[2] as char).to_digit(10).unwrap();
+    let accidental: i32 = if bytes.len() > 1 {
+        if bytes[1] as char == '#' {
+            if s.len() == 3 {
+                octave = (bytes[2] as char).to_digit(10).unwrap();
+            }
+            1
+        } else if bytes[1] as char == 'b' {
+            if s.len() == 3 {
+                octave = (bytes[2] as char).to_digit(10).unwrap();
+            }
+            -1
+        } else {
+            if s.len() == 2 {
+                octave = (bytes[1] as char).to_digit(10).unwrap();
+            }
+            0
         }
-        1
-    } else if bytes[1] as char == 'b' {
-        if s.len() == 3 {
-            octave = (bytes[2] as char).to_digit(10).unwrap();
-        }
-        -1
     } else {
-        octave = (bytes[1] as char).to_digit(10).unwrap();
         0
     };
 
@@ -71,7 +77,7 @@ impl Parser {
     }
     fn mat(&mut self, t: TokenType) {
         if self.look.0 == t {
-            // println!("Expected {:?}, found {:?}", t, self.look.1);
+            println!("Expected {:?}, found {:?}", t, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
@@ -92,7 +98,7 @@ impl Parser {
     }
     fn mas(&mut self, s: &str) {
         if &self.look.1 == s {
-            // println!("Expected {:?}, found {:?}", s, self.look.1);
+            println!("Expected {:?}, found {:?}", s, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
@@ -294,6 +300,11 @@ impl Parser {
                     panic!("Invalid delimeter on line {}", self.lexer.lineno());
                 }
             }
+            NoteString => {
+                let note = Operand::Num(string_to_pitch(&self.look.1));
+                self.mat(NoteString);
+                note
+            }
             _ => panic!(
                 "Invalid term {:?} on line {}",
                 self.look.1,
@@ -304,79 +315,100 @@ impl Parser {
     fn exp_un(&mut self) -> Expression {
         if &self.look.1 == "-" {
             self.mas("-");
-            Expression::new(Operation::Negate(self.term()))
+            Expression::new(Operation::Negate(Operand::Expression(Box::new(
+                self.exp_un(),
+            ))))
         } else if &self.look.1 == "sin" {
             self.mas("sin");
-            Expression::new(Operation::Sine(self.term()))
+            Expression::new(Operation::Sine(Operand::Expression(Box::new(
+                self.exp_un(),
+            ))))
         } else if &self.look.1 == "cos" {
             self.mas("cos");
-            Expression::new(Operation::Cosine(self.term()))
+            Expression::new(Operation::Cosine(Operand::Expression(Box::new(
+                self.exp_un(),
+            ))))
         } else if &self.look.1 == "ceil" {
             self.mas("ceil");
-            Expression::new(Operation::Ceiling(self.term()))
+            Expression::new(Operation::Ceiling(Operand::Expression(Box::new(
+                self.exp_un(),
+            ))))
         } else if &self.look.1 == "floor" {
             self.mas("floor");
-            Expression::new(Operation::Floor(self.term()))
+            Expression::new(Operation::Floor(Operand::Expression(Box::new(
+                self.exp_un(),
+            ))))
         } else if &self.look.1 == "abs" {
             self.mas("abs");
-            Expression::new(Operation::AbsoluteValue(self.term()))
+            Expression::new(Operation::AbsoluteValue(Operand::Expression(Box::new(
+                self.exp_un(),
+            ))))
         } else {
             Expression::new(Operation::Operand(self.term()))
         }
     }
     fn exp_pow(&mut self) -> Expression {
-        let base_op = self.exp_un();
-        if self.look.1 == "^" {
-            self.mas("^");
-            Expression::new(Operation::Power(
-                Operand::Expression(Box::new(base_op)),
-                Operand::Expression(Box::new(self.exp_pow())),
-            ))
-        } else {
-            base_op
+        let mut expr = self.exp_un();
+        loop {
+            if self.look.1 == "^" {
+                self.mas("^");
+                expr = Expression::new(Operation::Power(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_un())),
+                ));
+            } else {
+                break;
+            }
         }
+        expr
     }
     fn exp_mul(&mut self) -> Expression {
-        let lhs_op = self.exp_pow();
-        if self.look.1 == "*" {
-            self.mas("*");
-            Expression::new(Operation::Multiply(
-                Operand::Expression(Box::new(lhs_op)),
-                Operand::Expression(Box::new(self.exp_mul())),
-            ))
-        } else if self.look.1 == "/" {
-            self.mas("/");
-            Expression::new(Operation::Divide(
-                Operand::Expression(Box::new(lhs_op)),
-                Operand::Expression(Box::new(self.exp_mul())),
-            ))
-        } else if self.look.1 == "%" {
-            self.mas("%");
-            Expression::new(Operation::Remainder(
-                Operand::Expression(Box::new(lhs_op)),
-                Operand::Expression(Box::new(self.exp_mul())),
-            ))
-        } else {
-            lhs_op
+        let mut expr = self.exp_pow();
+        loop {
+            if self.look.1 == "*" {
+                self.mas("*");
+                expr = Expression::new(Operation::Multiply(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_mul())),
+                ));
+            } else if self.look.1 == "/" {
+                self.mas("/");
+                expr = Expression::new(Operation::Divide(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_mul())),
+                ));
+            } else if self.look.1 == "%" {
+                self.mas("%");
+                expr = Expression::new(Operation::Remainder(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_mul())),
+                ));
+            } else {
+                break;
+            }
         }
+        expr
     }
     fn exp_add(&mut self) -> Expression {
-        let lhs_op = self.exp_mul();
-        if self.look.1 == "+" {
-            self.mas("+");
-            Expression::new(Operation::Add(
-                Operand::Expression(Box::new(lhs_op)),
-                Operand::Expression(Box::new(self.exp_add())),
-            ))
-        } else if self.look.1 == "-" {
-            self.mas("-");
-            Expression::new(Operation::Subtract(
-                Operand::Expression(Box::new(lhs_op)),
-                Operand::Expression(Box::new(self.exp_add())),
-            ))
-        } else {
-            lhs_op
+        let mut expr = self.exp_mul();
+        loop {
+            if self.look.1 == "+" {
+                self.mas("+");
+                expr = Expression::new(Operation::Add(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_mul())),
+                ));
+            } else if self.look.1 == "-" {
+                self.mas("-");
+                expr = Expression::new(Operation::Subtract(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_mul())),
+                ));
+            } else {
+                break;
+            }
         }
+        expr
     }
     fn expression(&mut self) -> Expression {
         self.exp_add()
