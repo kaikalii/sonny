@@ -1,3 +1,4 @@
+extern crate colored;
 extern crate either;
 extern crate hound;
 
@@ -18,11 +19,16 @@ use parser::*;
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() >= 2 {
-        let parser = Parser::new(&args[1]);
-        let builder = parser.parse();
-        // println!("{:#?}", builder);
-        let functions = Functions::new(builder);
-        write(functions, 32000.0);
+        match Parser::new(&args[1]) {
+            Ok(parser) => match parser.parse() {
+                Ok(builder) => {
+                    let functions = Functions::new(builder);
+                    write(functions, 32000.0);
+                }
+                Err(error) => error.report(),
+            },
+            Err(error) => error.report(),
+        }
     }
 }
 

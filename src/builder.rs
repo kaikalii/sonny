@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::f64;
+use std::fmt;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Property {
@@ -106,6 +107,14 @@ impl ChainName {
         match *self {
             ChainName::String(ref s) => s.clone(),
             ChainName::Anonymous(i) => format!("anon{:04}", i),
+        }
+    }
+}
+impl fmt::Display for ChainName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ChainName::String(ref s) => write!(f, "chain: {}", s),
+            ChainName::Anonymous(num) => write!(f, "anonymous chain: {}", num),
         }
     }
 }

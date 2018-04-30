@@ -1,3 +1,4 @@
+use std::fmt;
 use std::fs::File;
 use std::io::Read;
 
@@ -23,11 +24,48 @@ pub enum TokenType {
     Unknown,
     Empty,
 }
+impl fmt::Display for TokenType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Operator => write!(f, "operator"),
+            Id => write!(f, "id"),
+            Num => write!(f, "num"),
+            NoteString => write!(f, "pitch"),
+            Keyword => write!(f, "keyword"),
+            Delimeter => write!(f, "delimeter"),
+            BackLink => write!(f, "'!'"),
+            Dot => write!(f, "'.'"),
+            Rest => write!(f, "'_'"),
+            Done => write!(f, "Done"),
+            Unknown => write!(f, "unknown"),
+            Empty => write!(f, "empty"),
+        }
+    }
+}
 
 use self::TokenType::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token(pub TokenType, pub String);
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.0 {
+            Operator => write!(f, "operator: '{}'", self.1),
+            Id => write!(f, "id: '{}'", self.1),
+            Num => write!(f, "num: '{}'", self.1),
+            NoteString => write!(f, "pitch: '{}'", self.1),
+            Keyword => write!(f, "keyword: '{}'", self.1),
+            Delimeter => write!(f, "delimeter: '{}'", self.1),
+            BackLink => write!(f, "'!'"),
+            Dot => write!(f, "'.'"),
+            Rest => write!(f, "'_'"),
+            Done => write!(f, "done"),
+            Unknown => write!(f, "unknown"),
+            Empty => write!(f, "empty"),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -42,7 +80,7 @@ impl Lexer {
     pub fn new(file: &str) -> SonnyResult<Lexer> {
         Ok(Lexer {
             lineno: 1,
-            column: 1,
+            column: 0,
             was_put_back: false,
             c: [0],
             file: if let Ok(f) = File::open(file) {
@@ -61,6 +99,7 @@ impl Lexer {
             Some(self.c[0] as char)
         } else {
             if self.file.read_exact(&mut self.c).is_ok() {
+                self.column += 1;
                 Some(self.c[0] as char)
             } else {
                 None
@@ -136,6 +175,7 @@ impl Lexer {
             else if c.is_whitespace() {
                 if c == '\n' {
                     self.lineno += 1;
+                    self.column = 0;
                 }
             }
             // Check for operators
