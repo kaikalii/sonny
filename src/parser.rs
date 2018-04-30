@@ -74,6 +74,11 @@ impl Parser {
     pub fn parse(mut self) -> Builder {
         // Parse everything into chains
         while self.look.0 != Done {
+            if self.look.1 == "tempo" {
+                self.mas("tempo");
+                self.mas(":");
+                self.builder.tempo = self.real();
+            }
             self.chain_declaration();
         }
 

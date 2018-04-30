@@ -3,7 +3,7 @@ use std::io::Read;
 
 static KEYWORDS: &[&'static str] = &[
     "time", "sin", "cos", "ceil", "floor", "abs", "min", "max", "log", "end", "out", "dur", "w",
-    "h", "q", "e", "s", "ts",
+    "h", "q", "e", "s", "ts", "tempo",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -21,7 +21,7 @@ fn main() {
         let builder = parser.parse();
         // println!("{:#?}", builder);
         let functions = Functions::new(builder);
-        write(functions, 5000.0);
+        write(functions, 32000.0);
     }
 }
 
