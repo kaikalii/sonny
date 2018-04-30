@@ -127,7 +127,7 @@ pub struct Chain {
 
 #[derive(Debug)]
 pub struct Builder {
-    curr_chain: Option<Chain>,
+    curr_chains: Vec<Chain>,
     pub chains: HashMap<ChainName, Chain>,
     next_anon_chain: usize,
     pub tempo: f64,
@@ -136,14 +136,14 @@ pub struct Builder {
 impl Builder {
     pub fn new() -> Builder {
         Builder {
-            curr_chain: None,
+            curr_chains: Vec::new(),
             chains: HashMap::new(),
             next_anon_chain: 0,
             tempo: 120.0,
         }
     }
     pub fn new_chain(&mut self) {
-        self.curr_chain = Some(Chain {
+        self.curr_chains.push(Chain {
             name: ChainName::String(String::new()),
             links: Vec::new(),
             period: Period::forever(),
@@ -151,7 +151,7 @@ impl Builder {
         });
     }
     pub fn finalize_chain(&mut self, name: Option<String>) {
-        let mut chain = self.curr_chain.take().expect("No chain to finalize");
+        let mut chain = self.curr_chains.pop().expect("No chain to finalize");
         if let Some(n) = name {
             chain.name = ChainName::String(n.clone());
             self.chains.insert(ChainName::String(n), chain);
@@ -163,21 +163,21 @@ impl Builder {
         }
     }
     pub fn chain_period(&mut self, period: Period) {
-        if let Some(ref mut chain) = self.curr_chain {
+        if let Some(ref mut chain) = self.curr_chains.last_mut() {
             chain.period = period;
         } else {
             panic!("No current chain to set period");
         }
     }
     pub fn play_chain(&mut self) {
-        if let Some(ref mut chain) = self.curr_chain {
+        if let Some(ref mut chain) = self.curr_chains.last_mut() {
             chain.play = true;
         } else {
             panic!("No current chain to set to play");
         }
     }
     pub fn new_expression(&mut self, expression: Expression) {
-        if let Some(ref mut chain) = self.curr_chain {
+        if let Some(ref mut chain) = self.curr_chains.last_mut() {
             chain.links.push(expression);
         } else {
             panic!("No current chain add expressions to");
