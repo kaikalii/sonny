@@ -481,15 +481,12 @@ impl Parser {
                     period.start = chain_period.end;
                     self.mas("end");
                 }
-            } else {
+            } else if self.look.0 == Num {
                 period.start = Time::Absolute(self.duration());
             }
             self.mas(":");
             if self.look.1 == "end" {
                 self.mas("end");
-            } else if self.look.1 == "notes" {
-                self.mas("notes");
-                period.end = Time::Notes;
             } else if self.look.0 == Id {
                 let chain_period = if let Some(chain) = self.builder
                     .find_chain(&ChainName::String(self.look.1.clone()))
@@ -511,7 +508,7 @@ impl Parser {
                     period.end = chain_period.end;
                     self.mas("end");
                 }
-            } else {
+            } else if self.look.0 == Num {
                 period.end = Time::Absolute(self.duration());
             }
             self.mas("]");

@@ -54,7 +54,6 @@ pub enum Time {
     Absolute(f64),
     Start,
     End,
-    Notes,
 }
 
 impl Time {
@@ -62,7 +61,7 @@ impl Time {
         match *self {
             Time::Absolute(a) => a,
             Time::Start => 0.0,
-            Time::End | Time::Notes => f64::MAX,
+            Time::End => f64::MAX,
         }
     }
 }
@@ -154,19 +153,15 @@ impl Builder {
     pub fn finalize_chain(&mut self, name: Option<String>) -> ChainName {
         let mut chain = self.curr_chains.pop().expect("No chain to finalize");
         let chain_name;
-        // Fix chain period ending in Time::Notes
-        if let Time::Notes = chain.period.end {
-            chain.period.end = if let Operation::Operand(Operand::Notes(ref notes)) =
-                chain.links[0].operation
-            {
-                if let Some(ref note) = notes.last() {
-                    note.period.end
-                } else {
-                    panic!("Notes are empty");
+        // Fix chain period endings of notes chains
+        if let Operation::Operand(Operand::Notes(ref notes)) = chain.links[0].operation {
+            if let Some(ref note) = notes.last() {
+                if let Time::End = chain.period.end {
+                    chain.period.end = note.period.end;
                 }
             } else {
-                panic!("Chains marked with the \"notes\" period end must begin with only a list of notes.");
-            };
+                panic!("Notes are empty");
+            }
         }
         // Assign name and insert into chains map
         if let Some(n) = name {

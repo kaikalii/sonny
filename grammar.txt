@@ -46,8 +46,9 @@ period_ends -> duration
 	| notes
 	| id.start
 	| id.end
+	| \0
 
-period -> [ duration : duration ]
+period -> [ period_ends : period_ends ]
 	| \0
 
 built_in -> start | end | length | notes
