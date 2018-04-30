@@ -40,6 +40,13 @@ id_chars -> alpha_num_us id_chars
 id -> letter id_chars
 	| _ id_chars
 
+period_ends -> duration
+	| start
+	| end
+	| notes
+	| id.start
+	| id.end
+
 period -> [ duration : duration ]
 	| \0
 

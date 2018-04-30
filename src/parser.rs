@@ -74,22 +74,6 @@ impl Parser {
         while self.look.0 != Done {
             self.chain_declaration();
         }
-        // After main parsing is done, fix Time::Notes in periods
-        for chain in self.builder.chains.values_mut() {
-            if let Time::Notes = chain.period.end {
-                chain.period.end = if let Operation::Operand(Operand::Notes(ref notes)) =
-                    chain.links[0].operation
-                {
-                    if let Some(ref note) = notes.last() {
-                        note.period.end
-                    } else {
-                        panic!("Notes are empty");
-                    }
-                } else {
-                    panic!("Chains marked with the \"notes\" period end must begin with only a list of notes.");
-                };
-            }
-        }
 
         self.builder
     }
@@ -476,6 +460,27 @@ impl Parser {
             self.mas("[");
             if self.look.1 == "start" {
                 self.mas("start");
+            } else if self.look.0 == Id {
+                let chain_period = if let Some(chain) = self.builder
+                    .find_chain(&ChainName::String(self.look.1.clone()))
+                {
+                    chain.period
+                } else {
+                    panic!(
+                        "Chain {} cannot be found on line {}",
+                        self.look.1,
+                        self.lexer.lineno()
+                    );
+                };
+                self.mat(Id);
+                self.mas(".");
+                if self.look.1 == "start" {
+                    period.start = chain_period.start;
+                    self.mas("start");
+                } else if self.look.1 == "end" {
+                    period.start = chain_period.end;
+                    self.mas("end");
+                }
             } else {
                 period.start = Time::Absolute(self.duration());
             }
@@ -485,6 +490,27 @@ impl Parser {
             } else if self.look.1 == "notes" {
                 self.mas("notes");
                 period.end = Time::Notes;
+            } else if self.look.0 == Id {
+                let chain_period = if let Some(chain) = self.builder
+                    .find_chain(&ChainName::String(self.look.1.clone()))
+                {
+                    chain.period
+                } else {
+                    panic!(
+                        "Chain {} cannot be found on line {}",
+                        self.look.1,
+                        self.lexer.lineno()
+                    );
+                };
+                self.mat(Id);
+                self.mas(".");
+                if self.look.1 == "start" {
+                    self.mas("start");
+                    period.end = chain_period.start;
+                } else if self.look.1 == "end" {
+                    period.end = chain_period.end;
+                    self.mas("end");
+                }
             } else {
                 period.end = Time::Absolute(self.duration());
             }

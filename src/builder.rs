@@ -67,7 +67,7 @@ impl Time {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Period {
     pub start: Time,
     pub end: Time,
@@ -154,6 +154,21 @@ impl Builder {
     pub fn finalize_chain(&mut self, name: Option<String>) -> ChainName {
         let mut chain = self.curr_chains.pop().expect("No chain to finalize");
         let chain_name;
+        // Fix chain period ending in Time::Notes
+        if let Time::Notes = chain.period.end {
+            chain.period.end = if let Operation::Operand(Operand::Notes(ref notes)) =
+                chain.links[0].operation
+            {
+                if let Some(ref note) = notes.last() {
+                    note.period.end
+                } else {
+                    panic!("Notes are empty");
+                }
+            } else {
+                panic!("Chains marked with the \"notes\" period end must begin with only a list of notes.");
+            };
+        }
+        // Assign name and insert into chains map
         if let Some(n) = name {
             chain.name = ChainName::String(n.clone());
             chain_name = chain.name.clone();
@@ -186,6 +201,13 @@ impl Builder {
             chain.links.push(expression);
         } else {
             panic!("No current chain to add expressions to");
+        }
+    }
+    pub fn find_chain(&self, name: &ChainName) -> Option<&Chain> {
+        if self.chains.contains_key(name) {
+            self.chains.get(name)
+        } else {
+            self.chains.values().find(|c| &c.name == name)
         }
     }
 }
