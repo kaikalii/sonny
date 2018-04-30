@@ -321,11 +321,6 @@ impl Parser {
 
                     self.mas(")");
                     Operand::Expression(Box::new(expr))
-                } else if self.look.1 == "{" {
-                    self.mas("{");
-                    let notes = self.notes();
-                    self.mas("}");
-                    Operand::Notes(notes)
                 } else {
                     panic!("Invalid delimeter on line {}", self.lexer.lineno());
                 }
@@ -541,6 +536,12 @@ impl Parser {
             self.mas("|");
             self.builder
                 .new_expression(Expression::new(Operation::Operand(Operand::Id(name))))
+        } else if self.look.1 == "{" {
+            self.mas("{");
+            let notes = self.notes();
+            self.mas("}");
+            self.builder
+                .new_expression(Expression::new(Operation::Operand(Operand::Notes(notes))))
         } else {
             let expr = self.expression();
             self.builder.new_expression(expr);
