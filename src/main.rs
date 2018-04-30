@@ -21,7 +21,7 @@ fn main() {
         println!("Parse complete");
         // println!("{:#?}", builder);
         let functions = Functions::new(builder);
-        write(functions, 10000.0);
+        write(functions, 4000.0);
     }
 }
 

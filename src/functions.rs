@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::f64;
 
 use builder::{self, *};
 
@@ -171,12 +172,15 @@ impl Functions {
             Divide(..) => x / y.unwrap(),
             Remainder(..) => x % y.unwrap(),
             Power(..) => x.powf(y.unwrap()),
+            Min(..) => x.min(y.unwrap()),
+            Max(..) => x.max(y.unwrap()),
             Negate(..) => -x,
             Sine(..) => x.sin(),
             Cosine(..) => x.cos(),
             Ceiling(..) => x.ceil(),
             Floor(..) => x.floor(),
             AbsoluteValue(..) => x.abs(),
+            Logarithm(..) => x.log(f64::consts::E),
             Operand(..) => x,
         }
     }

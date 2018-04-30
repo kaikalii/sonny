@@ -9,6 +9,9 @@ static KEYWORDS: &[&'static str] = &[
     "ceil",
     "floor",
     "abs",
+    "min",
+    "max",
+    "log",
     "end",
     "out",
 ];

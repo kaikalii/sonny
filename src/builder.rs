@@ -19,12 +19,15 @@ pub enum Operation {
     Divide(Operand, Operand),
     Remainder(Operand, Operand),
     Power(Operand, Operand),
+    Min(Operand, Operand),
+    Max(Operand, Operand),
     Negate(Operand),
     Sine(Operand),
     Cosine(Operand),
     Floor(Operand),
     Ceiling(Operand),
     AbsoluteValue(Operand),
+    Logarithm(Operand),
     Operand(Operand),
 }
 
@@ -37,9 +40,11 @@ impl Operation {
             | Multiply(ref a, ref b)
             | Divide(ref a, ref b)
             | Remainder(ref a, ref b)
-            | Power(ref a, ref b) => (a, Some(b)),
+            | Power(ref a, ref b)
+            | Min(ref a, ref b)
+            | Max(ref a, ref b) => (a, Some(b)),
             Negate(ref a) | Sine(ref a) | Cosine(ref a) | Ceiling(ref a) | Floor(ref a)
-            | AbsoluteValue(ref a) | Operand(ref a) => (a, None),
+            | AbsoluteValue(ref a) | Logarithm(ref a) | Operand(ref a) => (a, None),
         }
     }
 }

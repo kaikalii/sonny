@@ -77,7 +77,7 @@ impl Parser {
     }
     fn mat(&mut self, t: TokenType) {
         if self.look.0 == t {
-            println!("Expected {:?}, found {:?}", t, self.look.1);
+            // println!("Expected {:?}, found {:?}", t, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
@@ -98,7 +98,7 @@ impl Parser {
     }
     fn mas(&mut self, s: &str) {
         if &self.look.1 == s {
-            println!("Expected {:?}, found {:?}", s, self.look.1);
+            // println!("Expected {:?}, found {:?}", s, self.look.1);
             if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
@@ -347,15 +347,41 @@ impl Parser {
             Expression::new(Operation::Operand(self.term()))
         }
     }
-    fn exp_pow(&mut self) -> Expression {
+    fn exp_min_max(&mut self) -> Expression {
         let mut expr = self.exp_un();
+        loop {
+            if self.look.1 == "min" {
+                self.mas("min");
+                expr = Expression::new(Operation::Min(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_un())),
+                ));
+            } else if self.look.1 == "max" {
+                self.mas("max");
+                expr = Expression::new(Operation::Max(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_un())),
+                ));
+            } else {
+                break;
+            }
+        }
+        expr
+    }
+    fn exp_pow(&mut self) -> Expression {
+        let mut expr = self.exp_min_max();
         loop {
             if self.look.1 == "^" {
                 self.mas("^");
                 expr = Expression::new(Operation::Power(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_un())),
+                    Operand::Expression(Box::new(self.exp_min_max())),
                 ));
+            } else if self.look.1 == "log" {
+                self.mas("log");
+                expr = Expression::new(Operation::Logarithm(Operand::Expression(Box::new(
+                    self.exp_pow(),
+                ))));
             } else {
                 break;
             }
@@ -433,6 +459,11 @@ impl Parser {
             }
             self.mas("]");
         }
+        self.curr_time = if let Time::Absolute(x) = period.start {
+            x
+        } else {
+            0.0
+        };
         period
     }
     fn link(&mut self) {

@@ -63,10 +63,16 @@ exp_un -> - term
 	| floor term
 	| ceil term
 	| abs term
+	| log term
 	| term
 
-exp_pow -> exp_un ^ exp_pow
+exp_min_max -> exp_un min exp_min_max
+	| exp_un max exp_min_max
 	| exp_un
+
+exp_pow -> exp_min_max ^ exp_pow
+	| log exp_pow
+	| exp_min_max
 
 exp_mul -> exp_pow * exp_mul
 	| exp_pow / exp_mul
