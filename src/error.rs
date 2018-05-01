@@ -2,7 +2,7 @@ use colored::*;
 use either::*;
 
 use builder::*;
-use lexer::{Token, TokenType};
+use lexer::{CodeLocation, Token, TokenType};
 
 #[derive(Debug, Clone)]
 pub enum ErrorSpec {
@@ -24,33 +24,35 @@ pub enum ErrorSpec {
 #[derive(Debug, Clone)]
 pub struct Error {
     pub spec: ErrorSpec,
-    pub line: Option<(usize, usize)>,
+    pub location: Option<CodeLocation>,
 }
 
 impl Error {
     pub fn new(spec: ErrorSpec) -> Error {
-        Error { spec, line: None }
+        Error {
+            spec,
+            location: None,
+        }
     }
-    pub fn on_line(mut self, line: (usize, usize)) -> Error {
-        self.line = Some(line);
+    pub fn on_line(mut self, line: CodeLocation) -> Error {
+        self.location = Some(line);
         self
     }
     pub fn report(&self) {
         use self::ErrorSpec::*;
-        let erl = if let Some(lineno) = self.line {
+        // Print the generic error message
+        let erl = if let Some(ref loc) = self.location {
             format!(
                 "{} on line {}",
                 "Error".red().bold(),
-                format!(
-                    "{}:{}",
-                    lineno.0.to_string().white(),
-                    lineno.1.to_string().white()
-                )
+                format!("{}", loc).cyan().bold()
             )
         } else {
             format!("{}", "Error".red().bold())
         };
         println!("{}", erl);
+
+        // Print the error details
         match self.spec {
             FileNotFound(ref filename) => println!("Unable to find file: '{}'.", filename),
             ExpectedFound(ref expected, ref found) => {
@@ -82,7 +84,7 @@ impl Error {
                 println!("Unknown chain referenced in period: '{}'.", chain_name)
             }
             UnexpectedEndOfFile => println!("Unexpected end of file."),
-            ZeroBacklink => println!("Backlinks must be greater than 0"),
+            ZeroBacklink => println!("Backlinks must be greater than 0."),
         }
     }
 }

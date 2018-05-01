@@ -98,7 +98,7 @@ impl Parser {
         } else {
             Err(
                 Error::new(ErrorSpec::ExpectedFound(Left(t), self.look.clone()))
-                    .on_line(self.lexer.lineno()),
+                    .on_line(self.lexer.loc()),
             )
         }
     }
@@ -118,14 +118,14 @@ impl Parser {
                     self.paren_level -= 1;
                 } else {
                     return Err(Error::new(ErrorSpec::CloseDelimeter(")".to_string()))
-                        .on_line(self.lexer.lineno()));
+                        .on_line(self.lexer.loc()));
                 }
             })
         } else {
             Err(Error::new(ErrorSpec::ExpectedFound(
                 Right(s.to_string()),
                 self.look.clone(),
-            )).on_line(self.lexer.lineno()))
+            )).on_line(self.lexer.loc()))
         }
     }
     fn peek(&mut self) -> Token {
@@ -174,7 +174,7 @@ impl Parser {
             self.mas("_")?;
             0.0
         } else {
-            return Err(Error::new(InvalidPitch(self.look.clone())).on_line(self.lexer.lineno()));
+            return Err(Error::new(InvalidPitch(self.look.clone())).on_line(self.lexer.loc()));
         })
     }
     fn dots(&mut self) -> SonnyResult<usize> {
@@ -191,14 +191,14 @@ impl Parser {
                 let num1 = self.look.1.parse::<f64>().expect(&format!(
                     "Unable to parse duration num {:?} on line {:?}",
                     self.look.1,
-                    self.lexer.lineno(),
+                    self.lexer.loc(),
                 ));
                 self.mat(Num)?;
                 self.mas("/")?;
                 let num2 = self.look.1.parse::<f64>().expect(&format!(
                     "Unable to parse duration num {:?} on line {:?}",
                     self.look.1,
-                    self.lexer.lineno(),
+                    self.lexer.loc(),
                 ));
                 self.mat(Num)?;
                 (num1 / num2) / (self.builder.tempo / 60.0) * 4.0
@@ -213,7 +213,9 @@ impl Parser {
                 "e" => 0.125,
                 "s" => 0.0625,
                 "ts" => 0.03125,
-                _ => return Err(Error::new(DurationQuantifier(self.look.clone())).on_line(self.lexer.lineno())),
+                _ => {
+                    return Err(Error::new(DurationQuantifier(self.look.clone())).on_line(self.lexer.loc()))
+                }
             } / (self.builder.tempo / 60.0) * 4.0;
             self.mat(Keyword)?;
             for i in 0..self.dots()? {
@@ -249,12 +251,12 @@ impl Parser {
         self.mas("!")?;
         let op = Operand::BackLink(if let Ok(x) = self.look.1.parse() {
             if x == 0 {
-                return Err(Error::new(ZeroBacklink).on_line(self.lexer.lineno()));
+                return Err(Error::new(ZeroBacklink).on_line(self.lexer.loc()));
             } else {
                 x
             }
         } else {
-            return Err(Error::new(InvalidBackLink(self.look.clone())).on_line(self.lexer.lineno()));
+            return Err(Error::new(InvalidBackLink(self.look.clone())).on_line(self.lexer.loc()));
         });
         self.mat(Num)?;
         Ok(op)
@@ -265,10 +267,7 @@ impl Parser {
             Keyword => {
                 let op = match self.look.1.as_str() {
                     "time" => Operand::Time,
-                    _ => {
-                        return Err(Error::new(InvalidKeyword(self.look.1.clone()))
-                            .on_line(self.lexer.lineno()))
-                    }
+                    _ => return Err(Error::new(InvalidKeyword(self.look.1.clone())).on_line(self.lexer.loc())),
                 };
                 self.mat(Keyword)?;
                 op
@@ -289,7 +288,7 @@ impl Parser {
                         Operand::Property(ChainName::String(id), Property::Duration)
                     } else {
                         return Err(Error::new(ExpectedNotesProperty(self.look.clone()))
-                            .on_line(self.lexer.lineno()));
+                            .on_line(self.lexer.loc()));
                     }
                 } else {
                     Operand::Id(ChainName::String(id))
@@ -304,8 +303,7 @@ impl Parser {
                     self.mas(")")?;
                     Operand::Expression(Box::new(expr))
                 } else {
-                    return Err(Error::new(InvalidDelimeter(self.look.1.clone()))
-                        .on_line(self.lexer.lineno()));
+                    return Err(Error::new(InvalidDelimeter(self.look.1.clone())).on_line(self.lexer.loc()));
                 }
             }
             NoteString => {
@@ -313,10 +311,8 @@ impl Parser {
                 self.mat(NoteString)?;
                 note
             }
-            Done => return Err(Error::new(UnexpectedEndOfFile).on_line(self.lexer.lineno())),
-            _ => {
-                return Err(Error::new(InvalidTerm(self.look.clone())).on_line(self.lexer.lineno()))
-            }
+            Done => return Err(Error::new(UnexpectedEndOfFile).on_line(self.lexer.loc())),
+            _ => return Err(Error::new(InvalidTerm(self.look.clone())).on_line(self.lexer.loc())),
         })
     }
     fn exp_un(&mut self) -> SonnyResult<Expression> {
@@ -463,7 +459,7 @@ impl Parser {
                 } else {
                     return Err(Error::new(PeriodCantFindChain(ChainName::String(
                         self.look.1.clone(),
-                    ))).on_line(self.lexer.lineno()));
+                    ))).on_line(self.lexer.loc()));
                 };
                 self.mat(Id)?;
                 self.mas(".")?;
@@ -488,7 +484,7 @@ impl Parser {
                 } else {
                     return Err(Error::new(PeriodCantFindChain(ChainName::String(
                         self.look.1.clone(),
-                    ))).on_line(self.lexer.lineno()));
+                    ))).on_line(self.lexer.loc()));
                 };
                 self.mat(Id)?;
                 self.mas(".")?;

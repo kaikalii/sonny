@@ -36,7 +36,7 @@ impl fmt::Display for TokenType {
             BackLink => write!(f, "'!'"),
             Dot => write!(f, "'.'"),
             Rest => write!(f, "'_'"),
-            Done => write!(f, "Done"),
+            Done => write!(f, "enf of file"),
             Unknown => write!(f, "unknown"),
             Empty => write!(f, "empty"),
         }
@@ -60,17 +60,29 @@ impl fmt::Display for Token {
             BackLink => write!(f, "'!'"),
             Dot => write!(f, "'.'"),
             Rest => write!(f, "'_'"),
-            Done => write!(f, "done"),
+            Done => write!(f, "end of file"),
             Unknown => write!(f, "unknown"),
             Empty => write!(f, "empty"),
         }
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct CodeLocation {
+    pub line: usize,
+    pub column: usize,
+    pub file: String,
+}
+
+impl fmt::Display for CodeLocation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}:{}", self.file, self.line, self.column)
+    }
+}
+
 #[derive(Debug)]
 pub struct Lexer {
-    lineno: usize,
-    column: usize,
+    loc: CodeLocation,
     was_put_back: bool,
     c: [u8; 1],
     file: File,
@@ -79,8 +91,11 @@ pub struct Lexer {
 impl Lexer {
     pub fn new(file: &str) -> SonnyResult<Lexer> {
         Ok(Lexer {
-            lineno: 1,
-            column: 0,
+            loc: CodeLocation {
+                line: 1,
+                column: 0,
+                file: file.to_string(),
+            },
             was_put_back: false,
             c: [0],
             file: if let Ok(f) = File::open(file) {
@@ -90,8 +105,8 @@ impl Lexer {
             },
         })
     }
-    pub fn lineno(&self) -> (usize, usize) {
-        (self.lineno, self.column)
+    pub fn loc(&self) -> CodeLocation {
+        self.loc.clone()
     }
     fn get_char(&mut self) -> Option<char> {
         if self.was_put_back {
@@ -99,7 +114,7 @@ impl Lexer {
             Some(self.c[0] as char)
         } else {
             if self.file.read_exact(&mut self.c).is_ok() {
-                self.column += 1;
+                self.loc.column += 1;
                 Some(self.c[0] as char)
             } else {
                 None
@@ -174,8 +189,8 @@ impl Lexer {
             // Check for newlines
             else if c.is_whitespace() {
                 if c == '\n' {
-                    self.lineno += 1;
-                    self.column = 0;
+                    self.loc.line += 1;
+                    self.loc.column = 0;
                 }
             }
             // Check for operators
