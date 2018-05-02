@@ -19,18 +19,50 @@ use builder::*;
 use parser::*;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() >= 2 {
-        match Parser::new(&args[1]) {
+    let mut args = env::args();
+    args.next();
+    let mut sample_rate = 32000.0;
+    let mut file_name = None;
+    while let Some(ref arg) = args.next() {
+        match arg.to_string().as_ref() {
+            "-s" | "--sample_rate" => if let Some(ref sr_str) = args.next() {
+                if let Ok(sr) = sr_str.parse() {
+                    sample_rate = sr;
+                } else {
+                    println!("Invalid sample rate.");
+                    return;
+                }
+            },
+            "-h" | "--help" => {
+                println!(
+                    "\n\
+Usage:
+    sonny <filename> [options]
+
+Options:
+    -h | --help             Display this message
+    -s | --sample_rate      Set the sample rate of the output file
+                            in samples/second (default is 32000)
+"
+                );
+                return;
+            }
+            _ => file_name = Some(arg.to_string()),
+        }
+    }
+    if let Some(ref file_name) = file_name {
+        match Parser::new(file_name) {
             Ok(parser) => match parser.parse() {
                 Ok(mut builder) => {
                     builder.make_functions();
-                    write(builder, 44100.0);
+                    write(builder, sample_rate);
                 }
                 Err(error) => error.report(),
             },
             Err(error) => error.report(),
         }
+    } else {
+        println!("Usage: \n    sonny <filname> [options]\n    Type \"sonny -h\" or \"sonny --help\" for usage details.");
     }
 }
 
