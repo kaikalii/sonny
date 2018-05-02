@@ -280,6 +280,13 @@ impl Parser {
             }
             Id => {
                 let id = self.look.1.clone();
+                if !self.builder
+                    .chains
+                    .contains_key(&ChainName::String(id.clone()))
+                {
+                    return Err(Error::new(CantFindChain(ChainName::String(id.clone())))
+                        .on_line(self.lexer.loc()));
+                }
                 self.mat(Id)?;
                 if self.look.1 == "." {
                     self.mas(".")?;

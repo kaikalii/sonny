@@ -99,8 +99,8 @@ impl ChainName {
 impl fmt::Display for ChainName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ChainName::String(ref s) => write!(f, "chain: {}", s),
-            ChainName::Anonymous(num) => write!(f, "anonymous chain: {}", num),
+            ChainName::String(ref s) => write!(f, "chain: '{}'", s),
+            ChainName::Anonymous(num) => write!(f, "anonymous chain #{}", num),
         }
     }
 }
