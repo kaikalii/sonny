@@ -9,12 +9,11 @@ pitch_letter -> [A,G]
 
 accidental -> # | b | \0
 
-octave -> dig octave | digit | \0
+octave -> digit | \0
 
 real -> num
 	| num .
 	| num . num
-	| . num
 	| pi
 
 note_notation -> pitch_letter accidental octave
@@ -35,6 +34,7 @@ easy_duration -> w dots
 
 duration -> num / num
 	| real
+	| easy_duration
 
 note -> pitch : duration
 
@@ -50,17 +50,7 @@ id_chars -> alpha_num_us id_chars
 id -> letter id_chars
 	| _ id_chars
 
-period_ends -> duration
-	| start
-	| end
-	| id.start
-	| id.end
-	| \0
-
-period -> [ period_ends : period_ends ]
-	| \0
-
-built_in -> start | end | dur
+built_in -> start | end
 
 global -> time
 
@@ -107,6 +97,7 @@ link -> expression
 
 chain -> link -> chain
 	| link
+	| out
 
-chain_declaration -> id period : chain
+chain_declaration -> id : chain
 	| chain

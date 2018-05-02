@@ -35,19 +35,13 @@ fn main() {
 fn write(functions: Functions, sample_rate: f64) {
     // Find the audio end time
     // TODO: make this get done on a per-outchain basis
-    let mut end = f64::MAX;
+    let mut end: f64 = 1.0;
     for chain in functions.functions.values().map(|f| &f.chain) {
-        let t = chain.period.end;
-        if (t.lt(&end) && end == f64::MAX) || (t.gt(&end) && t != f64::MAX) {
-            end = t;
+        if let ChainLinks::OnlyNotes(ref _notes_or_ids, period) = chain.links {
+            end = end.max(period.end);
         }
     }
-    if end == f64::MAX {
-        end = 1.0;
-    }
-    // println!("end: {}", end);
-    // let mut last_vis_i = 0;
-    // let mut vis = vec![' '; 100];
+    end = end.max(functions.builder.end_time);
     for name in functions
         .functions
         .iter()
@@ -59,16 +53,6 @@ fn write(functions: Functions, sample_rate: f64) {
         for (i, mut sample) in song.iter_mut().enumerate() {
             let time = i as f64 / sample_rate;
             *sample = functions.evaluate_function(&name, &[], time, 0);
-
-            // let vis_i = ((*sample * 50.0 + 50.0) as usize).min(99);
-            // for j in last_vis_i.min(vis_i)..last_vis_i.max(vis_i) {
-            //     vis[j] = '#';
-            // }
-            // println!("{}", vis.iter().collect::<String>());
-            // for j in last_vis_i.min(vis_i)..last_vis_i.max(vis_i) {
-            //     vis[j] = ' ';
-            // }
-            // last_vis_i = vis_i
         }
         let spec = hound::WavSpec {
             channels: 1,

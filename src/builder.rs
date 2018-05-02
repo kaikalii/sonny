@@ -68,33 +68,19 @@ impl Period {
     pub fn contains(&self, time: f64) -> bool {
         self.start <= time && time < self.end
     }
-    pub fn forever() -> Period {
-        Period {
-            start: 0.0,
-            end: f64::MAX,
-        }
-    }
     pub fn duration(&self) -> f64 {
         self.end - self.start
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Note {
     pub pitch: f64,
     pub period: Period,
 }
 
 #[derive(Debug, Clone)]
-pub struct Expression {
-    pub operation: Operation,
-}
-
-impl Expression {
-    pub fn new(operation: Operation) -> Expression {
-        Expression { operation }
-    }
-}
+pub struct Expression(pub Operation);
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ChainName {
@@ -120,10 +106,82 @@ impl fmt::Display for ChainName {
 }
 
 #[derive(Debug, Clone)]
+pub enum NotesOrId {
+    Id(ChainName),
+    Notes(Vec<Note>),
+}
+
+#[derive(Debug, Clone)]
+pub enum ChainLinks {
+    Generic(Vec<Expression>),
+    OnlyNotes(Vec<NotesOrId>, Period),
+}
+
+impl ChainLinks {
+    pub fn find_note(
+        &self,
+        time: f64,
+        start_offset: f64,
+        chains: &HashMap<ChainName, Chain>,
+    ) -> Option<Note> {
+        if let ChainLinks::OnlyNotes(ref notes_or_ids, period) = *self {
+            if period.start + start_offset > time || period.end + start_offset <= time {
+                None
+            } else {
+                let mut local_offset = start_offset;
+                for notes_or_id in notes_or_ids {
+                    match notes_or_id {
+                        NotesOrId::Id(ref id) => {
+                            if let Some(chain) = chains.get(id) {
+                                if let ChainLinks::OnlyNotes(.., period) = chain.links {
+                                    let this_offset = local_offset;
+                                    local_offset += period.duration();
+                                    if let Some(note) =
+                                        chain.links.find_note(time, this_offset, chains)
+                                    {
+                                        return Some(note);
+                                    }
+                                } else {
+                                    panic!(
+                                        "somehow, an OnlyNotes chain had the id of a generic chain"
+                                    );
+                                }
+                            } else {
+                                panic!("Unable to find '{}'", id);
+                            }
+                        }
+                        NotesOrId::Notes(ref notes) => {
+                            for note in notes {
+                                if note.period.start + local_offset <= time
+                                    && note.period.end + local_offset > time
+                                {
+                                    return Some(Note {
+                                        pitch: note.pitch,
+                                        period: Period {
+                                            start: note.period.start + local_offset,
+                                            end: note.period.end + local_offset,
+                                        },
+                                    });
+                                }
+                            }
+                            panic!("Unable to find note in notes even though it should have been there.");
+                        }
+                    }
+                }
+                panic!(
+                    "Unable to find note in notes or ids even though it should have been there."
+                );
+            }
+        } else {
+            panic!("Can find notes in generic chain");
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Chain {
     pub name: ChainName,
-    pub links: Vec<Expression>,
-    pub period: Period,
+    pub links: ChainLinks,
     pub play: bool,
 }
 
@@ -133,6 +191,7 @@ pub struct Builder {
     pub chains: HashMap<ChainName, Chain>,
     next_anon_chain: usize,
     pub tempo: f64,
+    pub end_time: f64,
 }
 
 impl Builder {
@@ -142,28 +201,70 @@ impl Builder {
             chains: HashMap::new(),
             next_anon_chain: 0,
             tempo: 120.0,
+            end_time: 1.0,
         }
     }
     pub fn new_chain(&mut self) {
         self.curr_chains.push(Chain {
             name: ChainName::String(String::new()),
-            links: Vec::new(),
-            period: Period::forever(),
+            links: ChainLinks::Generic(Vec::new()),
             play: false,
         });
     }
     pub fn finalize_chain(&mut self, name: Option<String>) -> ChainName {
         let mut chain = self.curr_chains.pop().expect("No chain to finalize");
         let chain_name;
-        // Fix chain period endings of notes chains
-        if let Operation::Operand(Operand::Notes(ref notes)) = chain.links[0].operation {
-            if let Some(ref note) = notes.last() {
-                if chain.period.end == f64::MAX {
-                    chain.period.end = note.period.end;
+        // Turn chain into a Notes chain if necessary
+        let mut convert = true;
+        let mut only_notes: Vec<NotesOrId> = Vec::new();
+        let mut curr_time = 0.0;
+        if let ChainLinks::Generic(ref expressions) = chain.links {
+            for operation in expressions.iter().map(|expr| &expr.0) {
+                match operation {
+                    Operation::Operand(Operand::Notes(ref notes)) => {
+                        let mut new_notes = Vec::new();
+                        for note in notes {
+                            new_notes.push(Note {
+                                pitch: note.pitch,
+                                period: Period {
+                                    start: curr_time,
+                                    end: curr_time + note.period.duration(),
+                                },
+                            });
+                            curr_time += note.period.duration();
+                        }
+                        only_notes.push(NotesOrId::Notes(new_notes));
+                    }
+                    Operation::Operand(Operand::Id(ref notes_chain_name)) => {
+                        if let Some(ref notes_chain) = self.chains.get(notes_chain_name) {
+                            if let ChainLinks::OnlyNotes(ref _notes_or_ids, period) =
+                                notes_chain.links
+                            {
+                                only_notes.push(NotesOrId::Id(notes_chain_name.clone()));
+                                curr_time += period.duration();
+                            } else {
+                                convert = false;
+                                break;
+                            }
+                        } else {
+                            panic!("Unable to find '{}'", notes_chain_name);
+                        }
+                    }
+                    _ => {
+                        convert = false;
+                        break;
+                    }
                 }
-            } else {
-                panic!("Notes are empty");
             }
+        }
+        if convert {
+            chain.links = ChainLinks::OnlyNotes(
+                only_notes,
+                Period {
+                    start: 0.0,
+                    end: curr_time,
+                },
+            );
         }
         // Assign name and insert into chains map
         if let Some(n) = name {
@@ -179,13 +280,6 @@ impl Builder {
         }
         chain_name
     }
-    pub fn chain_period(&mut self, period: Period) {
-        if let Some(ref mut chain) = self.curr_chains.last_mut() {
-            chain.period = period;
-        } else {
-            panic!("No current chain to set period");
-        }
-    }
     pub fn play_chain(&mut self) {
         if let Some(ref mut chain) = self.curr_chains.last_mut() {
             chain.play = true;
@@ -194,17 +288,14 @@ impl Builder {
         }
     }
     pub fn new_expression(&mut self, expression: Expression) {
-        if let Some(ref mut chain) = self.curr_chains.last_mut() {
-            chain.links.push(expression);
+        if let Some(chain) = self.curr_chains.last_mut() {
+            if let ChainLinks::Generic(ref mut expressions) = chain.links {
+                expressions.push(expression);
+            } else {
+                panic!("Cannot add expression to Notes chain");
+            }
         } else {
             panic!("No current chain to add expressions to");
-        }
-    }
-    pub fn find_chain(&self, name: &ChainName) -> Option<&Chain> {
-        if self.chains.contains_key(name) {
-            self.chains.get(name)
-        } else {
-            self.chains.values().find(|c| &c.name == name)
         }
     }
 }

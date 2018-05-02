@@ -33,7 +33,7 @@ impl Functions {
     }
     fn collect_args(&mut self, expression: &Expression) -> HashSet<usize> {
         let mut args = HashSet::new();
-        let operands = expression.operation.operands();
+        let operands = expression.0.operands();
         use Operand::*;
         match *operands.0 {
             Id(ref id) => {
@@ -44,9 +44,11 @@ impl Functions {
                     let chain = self.builder.chains[id].clone();
                     self.make_function(chain);
                 }
-                args = args.union(self.functions[id].true_args.last().unwrap())
-                    .cloned()
-                    .collect();
+                if !self.functions[id].true_args.is_empty() {
+                    args = args.union(self.functions[id].true_args.last().unwrap())
+                        .cloned()
+                        .collect();
+                }
             }
             Expression(ref expr) => {
                 args = args.union(&self.collect_args(&expr)).cloned().collect();
@@ -63,9 +65,11 @@ impl Functions {
                         let chain = self.builder.chains[id].clone();
                         self.make_function(chain);
                     }
-                    args = args.union(self.functions[id].true_args.last().unwrap())
-                        .cloned()
-                        .collect();
+                    if !self.functions[id].true_args.is_empty() {
+                        args = args.union(self.functions[id].true_args.last().unwrap())
+                            .cloned()
+                            .collect();
+                    }
                 }
                 Expression(ref expr) => {
                     args = args.union(&self.collect_args(&expr)).cloned().collect();
@@ -81,19 +85,21 @@ impl Functions {
 
     fn make_function(&mut self, chain: Chain) {
         let mut true_args: Vec<HashSet<usize>> = Vec::new();
-        for (i, expression) in chain.links.iter().enumerate() {
-            let temp_args = self.collect_args(expression);
-            let mut final_args: HashSet<usize> = HashSet::new();
-            for arg in temp_args {
-                if (i as i32 - arg as i32) < 0 {
-                    final_args.insert((i as i32 - arg as i32).abs() as usize);
-                } else {
-                    for &prev_arg in &true_args[i - arg] {
-                        final_args.insert(prev_arg);
+        if let ChainLinks::Generic(ref expressions) = chain.links {
+            for (i, expression) in expressions.iter().enumerate() {
+                let temp_args = self.collect_args(expression);
+                let mut final_args: HashSet<usize> = HashSet::new();
+                for arg in temp_args {
+                    if (i as i32 - arg as i32) < 0 {
+                        final_args.insert((i as i32 - arg as i32).abs() as usize);
+                    } else {
+                        for &prev_arg in &true_args[i - arg] {
+                            final_args.insert(prev_arg);
+                        }
                     }
                 }
+                true_args.push(final_args);
             }
-            true_args.push(final_args);
         }
         self.functions.insert(
             chain.name.clone(),
@@ -131,37 +137,16 @@ impl Functions {
             Num(x) => x,
             Id(ref id) => self.evaluate_function(id, args, time, depth),
             Property(ref id, property) => if let Some(chain) = self.builder.chains.get(id) {
-                if let Operation::Operand(Operand::Notes(ref notes)) = chain.links[0].operation {
-                    use builder::Property::*;
-                    if time < notes.first().unwrap().period.start {
-                        time - notes.first().unwrap().period.start
-                    } else if time >= notes.last().unwrap().period.end {
-                        notes.last().unwrap().period.end - time
-                    } else {
+                if let ChainLinks::OnlyNotes(..) = chain.links {
+                    if let Some(note) = chain.links.find_note(time, 0.0, &self.builder.chains) {
+                        use builder::Property::*;
                         match property {
-                            Start => {
-                                notes
-                                    .iter()
-                                    .find(|n| n.period.contains(time))
-                                    .unwrap()
-                                    .period
-                                    .start
-                            }
-                            End => {
-                                notes
-                                    .iter()
-                                    .find(|n| n.period.contains(time))
-                                    .unwrap()
-                                    .period
-                                    .end
-                            }
-                            Duration => notes
-                                .iter()
-                                .find(|n| n.period.contains(time))
-                                .unwrap()
-                                .period
-                                .duration(),
+                            Start => note.period.start,
+                            End => note.period.end,
+                            Duration => note.period.duration(),
                         }
+                    } else {
+                        -1.0
                     }
                 } else {
                     panic!("Reference chain is not a note chain");
@@ -196,18 +181,18 @@ impl Functions {
         depth: usize,
     ) -> f64 {
         use self::Operation::*;
-        let (a, b) = expression.operation.operands();
+        let (a, b) = expression.0.operands();
         let x = self.evaluate_operand(a, name, args, time, depth);
         let y = b.map(|bb| self.evaluate_operand(bb, name, args, time, depth));
-        match expression.operation {
-            Add(..) => x + y.unwrap(),
-            Subtract(..) => x - y.unwrap(),
-            Multiply(..) => x * y.unwrap(),
-            Divide(..) => x / y.unwrap(),
-            Remainder(..) => x % y.unwrap(),
-            Power(..) => x.powf(y.unwrap()),
-            Min(..) => x.min(y.unwrap()),
-            Max(..) => x.max(y.unwrap()),
+        match expression.0 {
+            Add(..) => x + y.expect("failed to unwrap y in add"),
+            Subtract(..) => x - y.expect("failed to unwrap y in subtract"),
+            Multiply(..) => x * y.expect("failed to unwrap y in multiply"),
+            Divide(..) => x / y.expect("failed to unwrap y in divide"),
+            Remainder(..) => x % y.expect("failed to unwrap y in remainder"),
+            Power(..) => x.powf(y.expect("failed to unwrap y in min")),
+            Min(..) => x.min(y.expect("failed to unwrap y in min")),
+            Max(..) => x.max(y.expect("failed to unwrap y in max")),
             Negate(..) => -x,
             Sine(..) => x.sin(),
             Cosine(..) => x.cos(),
@@ -226,54 +211,60 @@ impl Functions {
         time: f64,
         depth: usize,
     ) -> f64 {
-        if time == 0.0 {
-            // println!(
-            //     "{}Calling function {:?}",
-            //     (0..depth).map(|_| ' ').collect::<String>(),
-            //     name
-            // );
-            // println!(
-            //     "{}  with args: {:?}",
-            //     (0..depth).map(|_| ' ').collect::<String>(),
-            //     args
-            // );
-        }
-        if self.functions[name].chain.period.contains(time) {
-            let mut results = Vec::new();
-            for (_i, expression) in self.functions[name].chain.links.iter().enumerate() {
-                // if time == 0.0 {
-                //     println!(
-                //         "{}    expression: {}",
-                //         (0..depth).map(|_| ' ').collect::<String>(),
-                //         i
-                //     );
-                // }
-                let mut these_args = Vec::new();
-                for &r in results.iter().rev() {
-                    these_args.push(r);
+        // if time == 0.0 {
+        //     println!(
+        //         "{}Calling function {:?}",
+        //         (0..depth).map(|_| ' ').collect::<String>(),
+        //         name
+        //     );
+        //     println!(
+        //         "{}  with args: {:?}",
+        //         (0..depth).map(|_| ' ').collect::<String>(),
+        //         args
+        //     );
+        // }
+        if let Some(function) = self.functions.get(name) {
+            match function.chain.links {
+                ChainLinks::Generic(ref expressions) => {
+                    let mut results = Vec::new();
+                    for (_i, expression) in expressions.iter().enumerate() {
+                        // if time == 0.0 {
+                        //     println!(
+                        //         "{}    expression: {}",
+                        //         (0..depth).map(|_| ' ').collect::<String>(),
+                        //         i
+                        //     );
+                        // }
+                        let mut these_args = Vec::new();
+                        for &r in results.iter().rev() {
+                            these_args.push(r);
+                        }
+                        for &a in args {
+                            these_args.push(a);
+                        }
+                        results.push(self.evaluate_expression(
+                            expression,
+                            name,
+                            &these_args,
+                            time,
+                            depth + 6,
+                        ));
+                    }
+                    // if time == 0.0 {
+                    //     print!("{}", (0..depth).map(|_| ' ').collect::<String>());
+                    //     println!("result: {}", results.last().unwrap());
+                    // }
+                    *results.last().expect("generic chain gave no last result")
                 }
-                for &a in args {
-                    these_args.push(a);
-                }
-                results.push(self.evaluate_expression(
-                    expression,
-                    name,
-                    &these_args,
-                    time,
-                    depth + 6,
-                ));
+                ChainLinks::OnlyNotes(..) => function
+                    .chain
+                    .links
+                    .find_note(time, 0.0, &self.builder.chains)
+                    .map(|n| n.pitch)
+                    .unwrap_or(0.0),
             }
-            // if time == 0.0 {
-            //     print!("{}", (0..depth).map(|_| ' ').collect::<String>());
-            //     println!("result: {}", results.last().unwrap());
-            // }
-            *results.last().unwrap()
         } else {
-            // if time == 0.0 {
-            //     print!("{}", (0..depth).map(|_| ' ').collect::<String>());
-            //     println!("result: {}", 0.0);
-            // }
-            0.0
+            panic!("No function named '{}'", name);
         }
     }
 }

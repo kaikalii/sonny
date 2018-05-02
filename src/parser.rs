@@ -14,17 +14,23 @@ fn string_to_pitch(s: &str) -> f64 {
     let accidental: i32 = if bytes.len() > 1 {
         if bytes[1] as char == '#' {
             if s.len() == 3 {
-                octave = (bytes[2] as char).to_digit(10).unwrap();
+                octave = (bytes[2] as char)
+                    .to_digit(10)
+                    .expect("unable to convert char to digit");
             }
             1
         } else if bytes[1] as char == 'b' {
             if s.len() == 3 {
-                octave = (bytes[2] as char).to_digit(10).unwrap();
+                octave = (bytes[2] as char)
+                    .to_digit(10)
+                    .expect("unable to convert char to digit");
             }
             -1
         } else {
             if s.len() == 2 {
-                octave = (bytes[1] as char).to_digit(10).unwrap();
+                octave = (bytes[1] as char)
+                    .to_digit(10)
+                    .expect("unable to convert char to digit");
             }
             0
         }
@@ -318,36 +324,36 @@ impl Parser {
     fn exp_un(&mut self) -> SonnyResult<Expression> {
         Ok(if &self.look.1 == "-" {
             self.mas("-")?;
-            Expression::new(Operation::Negate(Operand::Expression(Box::new(
+            Expression(Operation::Negate(Operand::Expression(Box::new(
                 self.exp_un()?,
             ))))
         } else if &self.look.1 == "sin" {
             self.mas("sin")?;
-            Expression::new(Operation::Sine(Operand::Expression(Box::new(
+            Expression(Operation::Sine(Operand::Expression(Box::new(
                 self.exp_un()?,
             ))))
         } else if &self.look.1 == "cos" {
             self.mas("cos")?;
-            Expression::new(Operation::Cosine(Operand::Expression(Box::new(
+            Expression(Operation::Cosine(Operand::Expression(Box::new(
                 self.exp_un()?,
             ))))
         } else if &self.look.1 == "ceil" {
             self.mas("ceil")?;
-            Expression::new(Operation::Ceiling(Operand::Expression(Box::new(
+            Expression(Operation::Ceiling(Operand::Expression(Box::new(
                 self.exp_un()?,
             ))))
         } else if &self.look.1 == "floor" {
             self.mas("floor")?;
-            Expression::new(Operation::Floor(Operand::Expression(Box::new(
+            Expression(Operation::Floor(Operand::Expression(Box::new(
                 self.exp_un()?,
             ))))
         } else if &self.look.1 == "abs" {
             self.mas("abs")?;
-            Expression::new(Operation::AbsoluteValue(Operand::Expression(Box::new(
+            Expression(Operation::AbsoluteValue(Operand::Expression(Box::new(
                 self.exp_un()?,
             ))))
         } else {
-            Expression::new(Operation::Operand(self.term()?))
+            Expression(Operation::Operand(self.term()?))
         })
     }
     fn exp_min_max(&mut self) -> SonnyResult<Expression> {
@@ -355,13 +361,13 @@ impl Parser {
         loop {
             if self.look.1 == "min" {
                 self.mas("min")?;
-                expr = Expression::new(Operation::Min(
+                expr = Expression(Operation::Min(
                     Operand::Expression(Box::new(expr)),
                     Operand::Expression(Box::new(self.exp_un()?)),
                 ));
             } else if self.look.1 == "max" {
                 self.mas("max")?;
-                expr = Expression::new(Operation::Max(
+                expr = Expression(Operation::Max(
                     Operand::Expression(Box::new(expr)),
                     Operand::Expression(Box::new(self.exp_un()?)),
                 ));
@@ -376,13 +382,13 @@ impl Parser {
         loop {
             if self.look.1 == "^" {
                 self.mas("^")?;
-                expr = Expression::new(Operation::Power(
+                expr = Expression(Operation::Power(
                     Operand::Expression(Box::new(expr)),
                     Operand::Expression(Box::new(self.exp_min_max()?)),
                 ));
             } else if self.look.1 == "log" {
                 self.mas("log")?;
-                expr = Expression::new(Operation::Logarithm(Operand::Expression(Box::new(
+                expr = Expression(Operation::Logarithm(Operand::Expression(Box::new(
                     self.exp_pow()?,
                 ))));
             } else {
@@ -396,19 +402,19 @@ impl Parser {
         loop {
             if self.look.1 == "*" {
                 self.mas("*")?;
-                expr = Expression::new(Operation::Multiply(
+                expr = Expression(Operation::Multiply(
                     Operand::Expression(Box::new(expr)),
                     Operand::Expression(Box::new(self.exp_pow()?)),
                 ));
             } else if self.look.1 == "/" {
                 self.mas("/")?;
-                expr = Expression::new(Operation::Divide(
+                expr = Expression(Operation::Divide(
                     Operand::Expression(Box::new(expr)),
                     Operand::Expression(Box::new(self.exp_pow()?)),
                 ));
             } else if self.look.1 == "%" {
                 self.mas("%")?;
-                expr = Expression::new(Operation::Remainder(
+                expr = Expression(Operation::Remainder(
                     Operand::Expression(Box::new(expr)),
                     Operand::Expression(Box::new(self.exp_pow()?)),
                 ));
@@ -423,13 +429,13 @@ impl Parser {
         loop {
             if self.look.1 == "+" {
                 self.mas("+")?;
-                expr = Expression::new(Operation::Add(
+                expr = Expression(Operation::Add(
                     Operand::Expression(Box::new(expr)),
                     Operand::Expression(Box::new(self.exp_mul()?)),
                 ));
             } else if self.look.1 == "-" {
                 self.mas("-")?;
-                expr = Expression::new(Operation::Subtract(
+                expr = Expression(Operation::Subtract(
                     Operand::Expression(Box::new(expr)),
                     Operand::Expression(Box::new(self.exp_mul()?)),
                 ));
@@ -442,80 +448,19 @@ impl Parser {
     fn expression(&mut self) -> SonnyResult<Expression> {
         self.exp_add()
     }
-    fn period(&mut self) -> SonnyResult<Period> {
-        let mut period = Period {
-            start: 0.0,
-            end: f64::MAX,
-        };
-        if self.look.1 == "[" {
-            self.mas("[")?;
-            if self.look.1 == "start" {
-                self.mas("start")?;
-            } else if self.look.0 == Id {
-                let chain_period = if let Some(chain) = self.builder
-                    .find_chain(&ChainName::String(self.look.1.clone()))
-                {
-                    chain.period
-                } else {
-                    return Err(Error::new(PeriodCantFindChain(ChainName::String(
-                        self.look.1.clone(),
-                    ))).on_line(self.lexer.loc()));
-                };
-                self.mat(Id)?;
-                self.mas(".")?;
-                if self.look.1 == "start" {
-                    period.start = chain_period.start;
-                    self.mas("start")?;
-                } else if self.look.1 == "end" {
-                    period.start = chain_period.end;
-                    self.mas("end")?;
-                }
-            } else if self.look.0 == Num {
-                period.start = self.duration()?;
-            }
-            self.mas(":")?;
-            if self.look.1 == "end" {
-                self.mas("end")?;
-            } else if self.look.0 == Id {
-                let chain_period = if let Some(chain) = self.builder
-                    .find_chain(&ChainName::String(self.look.1.clone()))
-                {
-                    chain.period
-                } else {
-                    return Err(Error::new(PeriodCantFindChain(ChainName::String(
-                        self.look.1.clone(),
-                    ))).on_line(self.lexer.loc()));
-                };
-                self.mat(Id)?;
-                self.mas(".")?;
-                if self.look.1 == "start" {
-                    self.mas("start")?;
-                    period.end = chain_period.start;
-                } else if self.look.1 == "end" {
-                    period.end = chain_period.end;
-                    self.mas("end")?;
-                }
-            } else if self.look.0 == Num {
-                period.end = self.duration()?;
-            }
-            self.mas("]")?;
-        }
-        self.curr_time = period.start;
-        Ok(period)
-    }
     fn link(&mut self) -> SonnyResult<()> {
         Ok(if self.look.1 == "|" {
             self.mas("|")?;
             let name = self.chain_declaration()?;
             self.mas("|")?;
             self.builder
-                .new_expression(Expression::new(Operation::Operand(Operand::Id(name))))
+                .new_expression(Expression(Operation::Operand(Operand::Id(name))))
         } else if self.look.1 == "{" {
             self.mas("{")?;
             let notes = self.notes()?;
             self.mas("}")?;
             self.builder
-                .new_expression(Expression::new(Operation::Operand(Operand::Notes(notes))))
+                .new_expression(Expression(Operation::Operand(Operand::Notes(notes))))
         } else {
             let expr = self.expression()?;
             self.builder.new_expression(expr);
@@ -527,7 +472,11 @@ impl Parser {
             self.mas("->")?;
             if self.look.1 == "out" {
                 self.builder.play_chain();
-                self.mas("out")?
+                self.mas("out")?;
+                if self.look.1 == ":" {
+                    self.mas(":")?;
+                    self.builder.end_time = self.real()?;
+                }
             } else {
                 self.link()?;
             }
@@ -537,18 +486,9 @@ impl Parser {
     fn chain_declaration(&mut self) -> SonnyResult<ChainName> {
         self.builder.new_chain();
         let mut name = None;
-        let mut need_colon = false;
-        if self.look.0 == Id && self.peek().1 == "[" || self.peek().1 == ":" {
+        if self.look.0 == Id && self.peek().1 == ":" {
             name = Some(self.look.1.clone());
             self.mat(Id)?;
-            need_colon = true;
-        }
-        if self.look.1 == "[" {
-            let period = self.period()?;
-            self.builder.chain_period(period);
-            need_colon = true;
-        }
-        if need_colon {
             self.mas(":")?;
         }
         self.chain()?;

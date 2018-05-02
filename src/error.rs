@@ -16,9 +16,10 @@ pub enum ErrorSpec {
     InvalidKeyword(String),
     ExpectedNotesProperty(Token),
     InvalidTerm(Token),
-    PeriodCantFindChain(ChainName),
+    CantFindChain(ChainName),
     UnexpectedEndOfFile,
     ZeroBacklink,
+    PropertyOfGenericChain(String),
 }
 
 #[derive(Debug, Clone)]
@@ -66,25 +67,25 @@ impl Error {
             InvalidDelimeter(ref found) => {
                 println!("Delimeter is not valid in this context: '{}'.", found)
             }
-            InvalidPitch(ref found) => println!("Expected pitch, found: '{}'.", found),
+            InvalidPitch(ref found) => println!("Expected pitch, found {}.", found),
             DurationQuantifier(ref found) => {
-                println!("Expected duration quantifier, found: '{}'.", found)
+                println!("Expected duration quantifier, found {}.", found)
             }
-            InvalidBackLink(ref found) => {
-                println!("Expected number after '!', found: '{}'.", found)
-            }
+            InvalidBackLink(ref found) => println!("Expected number after '!', found {}.", found),
             InvalidKeyword(ref found) => {
                 println!("Keyword is invalid in this context: '{}'.", found)
             }
             ExpectedNotesProperty(ref found) => {
-                println!("Expected notes property, found: '{}'.", found)
+                println!("Expected notes property, found {}.", found)
             }
             InvalidTerm(ref found) => println!("Invalid term: '{}'.", found),
-            PeriodCantFindChain(ref chain_name) => {
-                println!("Unknown chain referenced in period: '{}'.", chain_name)
-            }
+            CantFindChain(ref chain_name) => println!("The '{}' could not be found.", chain_name),
             UnexpectedEndOfFile => println!("Unexpected end of file."),
             ZeroBacklink => println!("Backlinks must be greater than 0."),
+            PropertyOfGenericChain(ref chain_name) => println!(
+                "The '{}' contains expressions, so properties cannot be taken from it.",
+                chain_name
+            ),
         }
     }
 }
