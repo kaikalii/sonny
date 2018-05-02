@@ -13,7 +13,6 @@ use std::env;
 use std::{f64, i16};
 
 use builder::*;
-use functions::*;
 use parser::*;
 
 fn main() {
@@ -61,7 +60,7 @@ fn write(builder: Builder, sample_rate: f64) {
                 if let ChainName::String(chain_name) = name {
                     chain_name.split("::").last().unwrap().to_string()
                 } else {
-                    format!("{}", name)
+                    name.to_string()
                 }
             ),
             spec,

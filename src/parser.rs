@@ -291,13 +291,10 @@ impl Parser {
                 Ok(op)
             }
             Id => {
-                let id = self.look.1.clone();
-                if self.builder
-                    .find_chain(&ChainName::String(id.clone()))
-                    .is_none()
-                {
-                    return Err(Error::new(CantFindChain(ChainName::String(id.clone())))
-                        .on_line(self.lexer.loc()));
+                let mut name = ChainName::String(self.look.1.clone());
+                match self.builder.find_chain(&name) {
+                    Some(ref chain) => name = chain.name.clone(),
+                    None => return Err(Error::new(CantFindChain(name)).on_line(self.lexer.loc())),
                 }
                 self.mat(Id)?;
                 if self.look.1 == "." {
@@ -305,39 +302,28 @@ impl Parser {
                     let property_name = self.look.1.clone();
                     let operand = if self.look.1 == "start" {
                         self.mas("start")?;
-                        Ok(Operand::Property(
-                            ChainName::String(id.clone()),
-                            Property::Start,
-                        ))
+                        Ok(Operand::Property(name.clone(), Property::Start))
                     } else if self.look.1 == "end" {
                         self.mas("end")?;
-                        Ok(Operand::Property(
-                            ChainName::String(id.clone()),
-                            Property::End,
-                        ))
+                        Ok(Operand::Property(name.clone(), Property::End))
                     } else if self.look.1 == "dur" {
                         self.mas("dur")?;
-                        Ok(Operand::Property(
-                            ChainName::String(id.clone()),
-                            Property::Duration,
-                        ))
+                        Ok(Operand::Property(name.clone(), Property::Duration))
                     } else {
                         Err(Error::new(ExpectedNotesProperty(self.look.clone()))
                             .on_line(self.lexer.loc()))
                     };
                     if let ChainLinks::Generic(..) = self.builder
-                        .find_chain(&ChainName::String(id.clone()))
+                        .find_chain(&name)
                         .expect("Unable to find chain")
                         .links
                     {
-                        return Err(Error::new(PropertyOfGenericChain(
-                            ChainName::String(id),
-                            property_name,
-                        )).on_line(self.lexer.loc()));
+                        return Err(Error::new(PropertyOfGenericChain(name, property_name))
+                            .on_line(self.lexer.loc()));
                     }
                     operand
                 } else {
-                    Ok(Operand::Id(ChainName::String(id)))
+                    Ok(Operand::Id(name))
                 }
             }
             BackLink => Ok(self.backlink()?),
