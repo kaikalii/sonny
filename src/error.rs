@@ -21,6 +21,7 @@ pub enum ErrorSpec {
     ZeroBacklink,
     PropertyOfGenericChain(ChainName, String),
     NamedChainInAnonChain(String),
+    ChainRedeclaration(ChainName),
 }
 
 #[derive(Debug, Clone)]
@@ -78,7 +79,9 @@ impl Error {
                 println!("Expected notes property, found {}.", found)
             }
             InvalidTerm(ref found) => println!("Invalid term: {}.", found),
-            CantFindChain(ref chain_name) => println!("The {} could not be found.", chain_name),
+            CantFindChain(ref chain_name) => {
+                println!("The {} could not be found in this scope.", chain_name)
+            }
             UnexpectedEndOfFile => println!("Unexpected end of file."),
             ZeroBacklink => println!("Backlinks must be greater than 0."),
             PropertyOfGenericChain(ref chain_name, ref property_name) => println!(
@@ -89,6 +92,7 @@ impl Error {
                 "A named chain: '{}' cannot be declared inside an anonymous chain.",
                 chain_name
             ),
+            ChainRedeclaration(ref chain_name) => println!("Redeclaration of {}.", chain_name),
         }
     }
 }

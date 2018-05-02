@@ -252,6 +252,9 @@ impl Builder {
                 self.next_anon_chain - 1
             })
         };
+        if self.find_chain(&return_name).is_some() {
+            return Err(Error::new(ChainRedeclaration(return_name.clone())));
+        }
         self.curr_chains.push(Chain {
             name: return_name.clone(),
             links: ChainLinks::Generic(Vec::new()),
