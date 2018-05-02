@@ -146,7 +146,7 @@ impl Functions {
                             Duration => note.period.duration(),
                         }
                     } else {
-                        -1.0
+                        0.0
                     }
                 } else {
                     panic!("Reference chain is not a note chain");
@@ -211,30 +211,11 @@ impl Functions {
         time: f64,
         depth: usize,
     ) -> f64 {
-        // if time == 0.0 {
-        //     println!(
-        //         "{}Calling function {:?}",
-        //         (0..depth).map(|_| ' ').collect::<String>(),
-        //         name
-        //     );
-        //     println!(
-        //         "{}  with args: {:?}",
-        //         (0..depth).map(|_| ' ').collect::<String>(),
-        //         args
-        //     );
-        // }
         if let Some(function) = self.functions.get(name) {
             match function.chain.links {
                 ChainLinks::Generic(ref expressions) => {
                     let mut results = Vec::new();
                     for (_i, expression) in expressions.iter().enumerate() {
-                        // if time == 0.0 {
-                        //     println!(
-                        //         "{}    expression: {}",
-                        //         (0..depth).map(|_| ' ').collect::<String>(),
-                        //         i
-                        //     );
-                        // }
                         let mut these_args = Vec::new();
                         for &r in results.iter().rev() {
                             these_args.push(r);
@@ -250,10 +231,6 @@ impl Functions {
                             depth + 6,
                         ));
                     }
-                    // if time == 0.0 {
-                    //     print!("{}", (0..depth).map(|_| ' ').collect::<String>());
-                    //     println!("result: {}", results.last().unwrap());
-                    // }
                     *results.last().expect("generic chain gave no last result")
                 }
                 ChainLinks::OnlyNotes(..) => function

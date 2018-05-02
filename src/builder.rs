@@ -213,7 +213,6 @@ impl Builder {
     }
     pub fn finalize_chain(&mut self, name: Option<String>) -> ChainName {
         let mut chain = self.curr_chains.pop().expect("No chain to finalize");
-        let chain_name;
         // Turn chain into a Notes chain if necessary
         let mut convert = true;
         let mut only_notes: Vec<NotesOrId> = Vec::new();
@@ -267,6 +266,7 @@ impl Builder {
             );
         }
         // Assign name and insert into chains map
+        let chain_name;
         if let Some(n) = name {
             chain.name = ChainName::String(n.clone());
             chain_name = chain.name.clone();
