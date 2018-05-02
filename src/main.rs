@@ -25,7 +25,7 @@ fn main() {
     let mut file_name = None;
     while let Some(ref arg) = args.next() {
         match arg.to_string().as_ref() {
-            "-s" | "--sample_rate" => if let Some(ref sr_str) = args.next() {
+            "-r" | "--sample_rate" => if let Some(ref sr_str) = args.next() {
                 if let Ok(sr) = sr_str.parse() {
                     sample_rate = sr;
                 } else {
@@ -41,7 +41,7 @@ Usage:
 
 Options:
     -h | --help             Display this message
-    -s | --sample_rate      Set the sample rate of the output file
+    -r | --sample_rate      Set the sample rate of the output file
                             in samples/second (default is 32000)
 "
                 );
@@ -51,8 +51,8 @@ Options:
         }
     }
     if let Some(ref file_name) = file_name {
-        match Parser::new(file_name) {
-            Ok(parser) => match parser.parse() {
+        match Parser::new(file_name, Builder::new()) {
+            Ok(parser) => match parser.parse(false) {
                 Ok(mut builder) => {
                     builder.make_functions();
                     write(builder, sample_rate);
