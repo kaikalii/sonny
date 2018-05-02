@@ -186,7 +186,7 @@ pub struct Chain {
 }
 
 #[derive(Debug, Clone)]
-struct NameInScope {
+pub struct NameInScope {
     pub name: String,
     pub contents: bool,
 }
@@ -194,7 +194,7 @@ struct NameInScope {
 #[derive(Debug)]
 pub struct Builder {
     curr_chains: Vec<Chain>,
-    names_in_scope: Vec<NameInScope>,
+    pub names_in_scope: Vec<NameInScope>,
     pub chains: HashMap<ChainName, Chain>,
     next_anon_chain: usize,
     pub anon_chain_depth: usize,
@@ -224,16 +224,11 @@ impl Builder {
                 return Err(Error::new(NamedChainInAnonChain(cn)).on_line(line));
             }
             ChainName::String({
-                let final_name = if !self.curr_chains.is_empty() {
+                let final_name = if !self.curr_chains.is_empty() && !self.names_in_scope.is_empty()
+                {
                     format!(
                         "{}::{}",
-                        if let ChainName::String(ref super_name) =
-                            self.curr_chains.last().unwrap().name
-                        {
-                            super_name.clone()
-                        } else {
-                            unreachable!()
-                        },
+                        self.names_in_scope.last().expect("no names in scope").name,
                         cn
                     )
                 } else {

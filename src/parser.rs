@@ -1,4 +1,5 @@
 use std::f64;
+use std::path::PathBuf;
 
 use either::*;
 
@@ -55,6 +56,7 @@ fn string_to_pitch(s: &str) -> f64 {
 
 #[derive(Debug)]
 pub struct Parser {
+    main_file_name: String,
     lexer: Lexer,
     builder: Builder,
     look: Token,
@@ -66,12 +68,13 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(file: &str) -> SonnyResult<Parser> {
+    pub fn new(file: &str, builder: Builder) -> SonnyResult<Parser> {
         let mut lexer = Lexer::new(file)?;
         let look = lexer.lex();
         Ok(Parser {
+            main_file_name: file.to_string(),
             lexer,
-            builder: Builder::new(),
+            builder,
             look,
             next: Token(Empty, String::new()),
             peeked: false,
@@ -80,7 +83,7 @@ impl Parser {
             paren_level: 0,
         })
     }
-    pub fn parse(mut self) -> SonnyResult<Builder> {
+    pub fn parse(mut self, finalize: bool) -> SonnyResult<Builder> {
         // Parse everything into chains
         self.builder.new_chain(
             Some(
@@ -98,10 +101,42 @@ impl Parser {
                 self.mas("tempo")?;
                 self.mas(":")?;
                 self.builder.tempo = self.real()?;
+            } // check for "use" keyword
+            if self.look.1 == "use" {
+                self.mas("use")?;
+                self.mas(":")?;
+                let mut filename = self.look.1.clone();
+                self.mat(Id)?;
+                if self.look.1 == "." {
+                    self.mas(".")?;
+                    if self.look.0 == Id {
+                        filename.push('.');
+                        filename.push_str(&self.look.1);
+                        self.mat(Id)?;
+                    }
+                }
+                // Open the file
+                let temp_scope = self.builder
+                    .names_in_scope
+                    .pop()
+                    .expect("no chains in scope");
+
+                let path = PathBuf::from(format!("./{}", self.main_file_name))
+                    .canonicalize()
+                    .expect("can't canonicalize main file name")
+                    .with_file_name(filename.clone());
+                self.builder = Parser::new(
+                    &path.to_str().expect("unable to convert path to string"),
+                    self.builder,
+                )?.parse(true)?;
+
+                self.builder.names_in_scope.push(temp_scope);
             }
             self.chain_declaration()?;
         }
-        // self.builder.finalize_chain();
+        if finalize {
+            self.builder.finalize_chain();
+        }
         Ok(self.builder)
     }
     fn mat(&mut self, t: TokenType) -> SonnyResult<()> {
@@ -292,11 +327,20 @@ impl Parser {
             }
             Id => {
                 let mut name = ChainName::String(self.look.1.clone());
+                self.mat(Id)?;
+                while self.look.1 == "::" {
+                    self.mas("::")?;
+                    let next_id = self.look.1.clone();
+                    self.mat(Id)?;
+                    if let ChainName::String(ref mut name) = name {
+                        name.push_str("::");
+                        name.push_str(&next_id);
+                    }
+                }
                 match self.builder.find_chain(&name) {
                     Some(ref chain) => name = chain.name.clone(),
                     None => return Err(Error::new(CantFindChain(name)).on_line(self.lexer.loc())),
                 }
-                self.mat(Id)?;
                 if self.look.1 == "." {
                     self.mas(".")?;
                     let property_name = self.look.1.clone();

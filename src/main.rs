@@ -21,8 +21,8 @@ use parser::*;
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() >= 2 {
-        match Parser::new(&args[1]) {
-            Ok(parser) => match parser.parse() {
+        match Parser::new(&args[1], Builder::new()) {
+            Ok(parser) => match parser.parse(true) {
                 Ok(mut builder) => {
                     builder.make_functions();
                     write(builder, 44100.0);

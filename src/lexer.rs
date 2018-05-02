@@ -1,12 +1,13 @@
 use std::fmt;
 use std::fs::File;
 use std::io::Read;
+use std::path::PathBuf;
 
 use error::*;
 
 static KEYWORDS: &[&'static str] = &[
     "time", "sin", "cos", "ceil", "floor", "abs", "min", "max", "log", "end", "out", "dur", "w",
-    "h", "q", "e", "s", "ts", "tempo",
+    "h", "q", "e", "s", "ts", "tempo", "use",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,7 +95,12 @@ impl Lexer {
             loc: CodeLocation {
                 line: 1,
                 column: 0,
-                file: file.to_string(),
+                file: PathBuf::from(file)
+                    .file_name()
+                    .expect("unable to get file name")
+                    .to_str()
+                    .expect("unable to convert file name to str")
+                    .to_string(),
             },
             was_put_back: false,
             c: [0],
