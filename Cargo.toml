@@ -7,3 +7,4 @@ authors = ["Kai Schmidt <kaikaliischmidt@gmail.com>"]
 hound = "*"
 either = "*"
 colored = "*"
+rayon = "*"

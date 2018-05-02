@@ -1,6 +1,7 @@
 extern crate colored;
 extern crate either;
 extern crate hound;
+extern crate rayon;
 
 #[macro_use]
 mod lexer;
@@ -12,6 +13,8 @@ mod parser;
 use std::env;
 use std::{f64, i16};
 
+use rayon::prelude::*;
+
 use builder::*;
 use parser::*;
 
@@ -22,7 +25,7 @@ fn main() {
             Ok(parser) => match parser.parse() {
                 Ok(mut builder) => {
                     builder.make_functions();
-                    write(builder, 4000.0);
+                    write(builder, 44100.0);
                 }
                 Err(error) => error.report(),
             },
@@ -42,12 +45,15 @@ fn write(builder: Builder, sample_rate: f64) {
     }
     end = end.max(builder.end_time);
     for name in builder.chains.iter().filter(|f| f.1.play).map(|f| f.0) {
-        let mut song = vec![0f64; (sample_rate * end) as usize];
-
-        for (i, mut sample) in song.iter_mut().enumerate() {
-            let time = i as f64 / sample_rate;
-            *sample = builder.evaluate_function(&name, &[], time, 0);
+        let mut song = vec![(0f64, 0usize); (sample_rate * end) as usize];
+        for (i, (_, ref mut x)) in song.iter_mut().enumerate() {
+            *x = i;
         }
+
+        song.par_iter_mut().for_each(|(sample, i)| {
+            let time = *i as f64 / sample_rate;
+            *sample = builder.evaluate_function(&name, &[], time, 0);
+        });
         let spec = hound::WavSpec {
             channels: 1,
             sample_rate: sample_rate as u32,
@@ -66,7 +72,7 @@ fn write(builder: Builder, sample_rate: f64) {
             spec,
         ).unwrap();
         let amplitude = i16::MAX as f64;
-        for s in song {
+        for (s, _) in song {
             writer
                 .write_sample((s * amplitude).min(amplitude) as i16)
                 .unwrap();
