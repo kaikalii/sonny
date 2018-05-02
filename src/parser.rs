@@ -8,52 +8,6 @@ use error::{ErrorSpec::*, *};
 use lexer::TokenType::*;
 use lexer::*;
 
-fn string_to_pitch(s: &str) -> f64 {
-    let bytes = s.as_bytes();
-    let letter = bytes[0] as char;
-    let mut octave = 3;
-    let accidental: i32 = if bytes.len() > 1 {
-        if bytes[1] as char == '#' {
-            if s.len() == 3 {
-                octave = (bytes[2] as char)
-                    .to_digit(10)
-                    .expect("unable to convert char to digit");
-            }
-            1
-        } else if bytes[1] as char == 'b' {
-            if s.len() == 3 {
-                octave = (bytes[2] as char)
-                    .to_digit(10)
-                    .expect("unable to convert char to digit");
-            }
-            -1
-        } else {
-            if s.len() == 2 {
-                octave = (bytes[1] as char)
-                    .to_digit(10)
-                    .expect("unable to convert char to digit");
-            }
-            0
-        }
-    } else {
-        0
-    };
-
-    let mut local_offset: i32 = match letter {
-        'C' => 0,
-        'D' => 2,
-        'E' => 4,
-        'F' => 5,
-        'G' => 7,
-        'A' => 9,
-        'B' => 11,
-        _ => panic!("Invalid note letter"),
-    };
-    local_offset += accidental;
-    let offset = local_offset + (octave * 12) as i32;
-    16.3516f64 * 1.059463094359f64.powf(offset as f64)
-}
-
 #[derive(Debug)]
 pub struct Parser {
     main_file_name: String,
@@ -65,6 +19,7 @@ pub struct Parser {
     sample_rate: f64,
     curr_time: f64,
     paren_level: usize,
+    last_note_octave: usize,
 }
 
 impl Parser {
@@ -81,6 +36,7 @@ impl Parser {
             sample_rate: 44100.0,
             curr_time: 0.0,
             paren_level: 0,
+            last_note_octave: 3,
         })
     }
     pub fn parse(mut self, finalize: bool) -> SonnyResult<Builder> {
@@ -216,9 +172,56 @@ impl Parser {
             .parse::<f64>()
             .expect(&format!("Unable to parse real num string: {}", num_str)))
     }
+    fn string_to_pitch(&mut self, s: &str) -> f64 {
+        let bytes = s.as_bytes();
+        let letter = bytes[0] as char;
+        let mut octave = self.last_note_octave as u32;
+        let accidental: i32 = if bytes.len() > 1 {
+            if bytes[1] as char == '#' {
+                if s.len() == 3 {
+                    octave = (bytes[2] as char)
+                        .to_digit(10)
+                        .expect("unable to convert char to digit");
+                }
+                1
+            } else if bytes[1] as char == 'b' {
+                if s.len() == 3 {
+                    octave = (bytes[2] as char)
+                        .to_digit(10)
+                        .expect("unable to convert char to digit");
+                }
+                -1
+            } else {
+                if s.len() == 2 {
+                    octave = (bytes[1] as char)
+                        .to_digit(10)
+                        .expect("unable to convert char to digit");
+                }
+                0
+            }
+        } else {
+            0
+        };
+
+        let mut local_offset: i32 = match letter {
+            'C' => 0,
+            'D' => 2,
+            'E' => 4,
+            'F' => 5,
+            'G' => 7,
+            'A' => 9,
+            'B' => 11,
+            _ => panic!("Invalid note letter"),
+        };
+        self.last_note_octave = octave as usize;
+        local_offset += accidental;
+        let offset = local_offset + (octave * 12) as i32;
+        16.3516f64 * 1.059463094359f64.powf(offset as f64)
+    }
     fn pitch(&mut self) -> SonnyResult<f64> {
         Ok(if self.look.0 == NoteString {
-            let pitch = string_to_pitch(&self.look.1.clone());
+            let note_string = self.look.1.clone();
+            let pitch = self.string_to_pitch(&note_string);
             self.mat(NoteString)?;
             pitch
         } else if self.look.0 == Num {
@@ -297,6 +300,7 @@ impl Parser {
             self.mas(",")?;
             note_list.push(self.note()?);
         }
+        self.last_note_octave = 3;
         self.curr_time = 0.0;
         Ok(note_list)
     }
@@ -383,7 +387,8 @@ impl Parser {
                 }
             }
             NoteString => {
-                let note = Operand::Num(string_to_pitch(&self.look.1.clone()));
+                let note_string = self.look.1.clone();
+                let note = Operand::Num(self.string_to_pitch(&note_string));
                 self.mat(NoteString)?;
                 Ok(note)
             }
