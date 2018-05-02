@@ -448,21 +448,24 @@ impl Parser {
         Ok(expr)
     }
     fn exp_pow(&mut self) -> SonnyResult<Expression> {
-        let mut expr = self.exp_min_max()?;
-        loop {
-            if self.look.1 == "^" {
-                self.mas("^")?;
-                expr = Expression(Operation::Power(
-                    Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_min_max()?)),
-                ));
-            } else if self.look.1 == "log" {
-                self.mas("log")?;
-                expr = Expression(Operation::Logarithm(Operand::Expression(Box::new(
-                    self.exp_pow()?,
-                ))));
-            } else {
-                break;
+        let mut expr;
+        if self.look.1 == "log" {
+            self.mas("log")?;
+            expr = Expression(Operation::Logarithm(Operand::Expression(Box::new(
+                self.exp_pow()?,
+            ))));
+        } else {
+            expr = self.exp_min_max()?;
+            loop {
+                if self.look.1 == "^" {
+                    self.mas("^")?;
+                    expr = Expression(Operation::Power(
+                        Operand::Expression(Box::new(expr)),
+                        Operand::Expression(Box::new(self.exp_min_max()?)),
+                    ));
+                } else {
+                    break;
+                }
             }
         }
         Ok(expr)
