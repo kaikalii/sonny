@@ -3,55 +3,33 @@ use std::f64;
 
 use builder::*;
 
-#[derive(Debug, Clone)]
-pub struct FunctionDef {
-    pub true_args: Vec<HashSet<usize>>,
-    pub chain: Chain,
-}
-
-#[derive(Debug)]
-pub struct Functions {
-    pub builder: Builder,
-    pub functions: HashMap<ChainName, FunctionDef>,
-}
-
-impl Functions {
-    pub fn new(builder: Builder) -> Functions {
-        let mut f = Functions {
-            builder,
-            functions: HashMap::new(),
-        };
-        f.make_functions();
-        // println!(
-        //     "functions: {:?}",
-        //     (f.functions
-        //         .iter()
-        //         .map(|f| (f.0.clone(), f.1.true_args.clone()))
-        //         .collect::<Vec<(ChainName, Vec<HashSet<usize>>)>>())
-        // );
-        f
-    }
-    fn collect_args(&mut self, expression: &Expression) -> HashSet<usize> {
+impl Builder {
+    fn collect_args(
+        &self,
+        expression: &Expression,
+        true_args_map: &mut HashMap<ChainName, Vec<HashSet<usize>>>,
+    ) -> HashSet<usize> {
         let mut args = HashSet::new();
         let operands = expression.0.operands();
         use Operand::*;
         match *operands.0 {
             Id(ref id) => {
-                if !self.functions.contains_key(id) {
-                    if !self.builder.chains.contains_key(id) {
-                        panic!("No known id: {:?}", id);
-                    }
-                    let chain = self.builder.chains[id].clone();
-                    self.make_function(chain);
+                if self.find_chain(id).is_none() {
+                    self.make_function(
+                        &self.find_chain(id).expect("Unable to find chain").name,
+                        true_args_map,
+                    );
                 }
-                if !self.functions[id].true_args.is_empty() {
-                    args = args.union(self.functions[id].true_args.last().unwrap())
+                if !self.find_chain(id).unwrap().true_args.is_empty() {
+                    args = args.union(self.find_chain(id).unwrap().true_args.last().unwrap())
                         .cloned()
                         .collect();
                 }
             }
             Expression(ref expr) => {
-                args = args.union(&self.collect_args(&expr)).cloned().collect();
+                args = args.union(&self.collect_args(&expr, true_args_map))
+                    .cloned()
+                    .collect();
             }
             BackLink(num) => {
                 args.insert(num);
@@ -61,18 +39,22 @@ impl Functions {
         if let Some(op) = operands.1 {
             match *op {
                 Id(ref id) => {
-                    if !self.functions.contains_key(id) {
-                        let chain = self.builder.chains[id].clone();
-                        self.make_function(chain);
+                    if self.find_chain(id).is_none() {
+                        self.make_function(
+                            &self.find_chain(id).expect("Unable to find chain").name,
+                            true_args_map,
+                        );
                     }
-                    if !self.functions[id].true_args.is_empty() {
-                        args = args.union(self.functions[id].true_args.last().unwrap())
+                    if !self.find_chain(id).unwrap().true_args.is_empty() {
+                        args = args.union(self.find_chain(id).unwrap().true_args.last().unwrap())
                             .cloned()
                             .collect();
                     }
                 }
                 Expression(ref expr) => {
-                    args = args.union(&self.collect_args(&expr)).cloned().collect();
+                    args = args.union(&self.collect_args(&expr, true_args_map))
+                        .cloned()
+                        .collect();
                 }
                 BackLink(num) => {
                     args.insert(num);
@@ -83,11 +65,17 @@ impl Functions {
         args
     }
 
-    fn make_function(&mut self, chain: Chain) {
+    fn make_function(
+        &self,
+        name: &ChainName,
+        true_args_map: &mut HashMap<ChainName, Vec<HashSet<usize>>>,
+    ) {
         let mut true_args: Vec<HashSet<usize>> = Vec::new();
-        if let ChainLinks::Generic(ref expressions) = chain.links {
+        if let ChainLinks::Generic(ref expressions) =
+            self.find_chain(name).expect("Unable to find chain").links
+        {
             for (i, expression) in expressions.iter().enumerate() {
-                let temp_args = self.collect_args(expression);
+                let temp_args = self.collect_args(expression, true_args_map);
                 let mut final_args: HashSet<usize> = HashSet::new();
                 for arg in temp_args {
                     if (i as i32 - arg as i32) < 0 {
@@ -101,26 +89,26 @@ impl Functions {
                 true_args.push(final_args);
             }
         }
-        self.functions.insert(
-            chain.name.clone(),
-            FunctionDef {
-                true_args,
-                chain: chain.clone(),
-            },
-        );
+        true_args_map.insert(name.clone(), true_args);
     }
 
-    fn make_functions(&mut self) {
-        for chain in self.builder
-            .chains
+    pub fn make_functions(&mut self) {
+        let mut true_args_map = HashMap::new();
+        for name in self.chains
             .values()
             .filter(|c| c.play)
-            .cloned()
-            .collect::<Vec<Chain>>()
+            .map(|c| c.name.clone())
+            .collect::<Vec<ChainName>>()
         {
-            if !self.functions.contains_key(&chain.name) {
-                self.make_function(chain);
+            if self.find_chain(&name).is_none() {
+                self.make_function(&name, &mut true_args_map);
             }
+        }
+        for (name, true_args) in true_args_map {
+            self.chains
+                .get_mut(&name)
+                .expect("Unable to find chain")
+                .true_args = true_args;
         }
     }
 
@@ -136,9 +124,9 @@ impl Functions {
         match *operand {
             Num(x) => x,
             Id(ref id) => self.evaluate_function(id, args, time, depth),
-            Property(ref id, property) => if let Some(chain) = self.builder.chains.get(id) {
+            Property(ref id, property) => if let Some(chain) = self.find_chain(id) {
                 if let ChainLinks::OnlyNotes(..) = chain.links {
-                    if let Some(note) = chain.links.find_note(time, 0.0, &self.builder.chains) {
+                    if let Some(note) = chain.links.find_note(time, 0.0, &self) {
                         use builder::Property::*;
                         match property {
                             Start => note.period.start,
@@ -211,8 +199,8 @@ impl Functions {
         time: f64,
         depth: usize,
     ) -> f64 {
-        if let Some(function) = self.functions.get(name) {
-            match function.chain.links {
+        if let Some(chain) = self.find_chain(name) {
+            match chain.links {
                 ChainLinks::Generic(ref expressions) => {
                     let mut results = Vec::new();
                     for (_i, expression) in expressions.iter().enumerate() {
@@ -233,10 +221,9 @@ impl Functions {
                     }
                     *results.last().expect("generic chain gave no last result")
                 }
-                ChainLinks::OnlyNotes(..) => function
-                    .chain
+                ChainLinks::OnlyNotes(..) => chain
                     .links
-                    .find_note(time, 0.0, &self.builder.chains)
+                    .find_note(time, 0.0, &self)
                     .map(|n| n.pitch)
                     .unwrap_or(0.0),
             }

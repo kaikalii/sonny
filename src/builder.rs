@@ -1,6 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::f64;
 use std::fmt;
+
+use error::{ErrorSpec::*, *};
+use lexer::CodeLocation;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Property {
@@ -118,12 +121,7 @@ pub enum ChainLinks {
 }
 
 impl ChainLinks {
-    pub fn find_note(
-        &self,
-        time: f64,
-        start_offset: f64,
-        chains: &HashMap<ChainName, Chain>,
-    ) -> Option<Note> {
+    pub fn find_note(&self, time: f64, start_offset: f64, builder: &Builder) -> Option<Note> {
         if let ChainLinks::OnlyNotes(ref notes_or_ids, period) = *self {
             if period.start + start_offset > time || period.end + start_offset <= time {
                 None
@@ -132,12 +130,12 @@ impl ChainLinks {
                 for notes_or_id in notes_or_ids {
                     match notes_or_id {
                         NotesOrId::Id(ref id) => {
-                            if let Some(chain) = chains.get(id) {
+                            if let Some(chain) = builder.find_chain(id) {
                                 if let ChainLinks::OnlyNotes(.., period) = chain.links {
                                     let this_offset = local_offset;
                                     local_offset += period.duration();
                                     if let Some(note) =
-                                        chain.links.find_note(time, this_offset, chains)
+                                        chain.links.find_note(time, this_offset, builder)
                                     {
                                         return Some(note);
                                     }
@@ -183,13 +181,23 @@ pub struct Chain {
     pub name: ChainName,
     pub links: ChainLinks,
     pub play: bool,
+
+    pub true_args: Vec<HashSet<usize>>,
+}
+
+#[derive(Debug, Clone)]
+struct NameInScope {
+    pub name: String,
+    pub contents: bool,
 }
 
 #[derive(Debug)]
 pub struct Builder {
     curr_chains: Vec<Chain>,
+    names_in_scope: Vec<NameInScope>,
     pub chains: HashMap<ChainName, Chain>,
     next_anon_chain: usize,
+    pub anon_chain_depth: usize,
     pub tempo: f64,
     pub end_time: f64,
 }
@@ -198,20 +206,61 @@ impl Builder {
     pub fn new() -> Builder {
         Builder {
             curr_chains: Vec::new(),
+            names_in_scope: Vec::new(),
             chains: HashMap::new(),
             next_anon_chain: 0,
+            anon_chain_depth: 0,
             tempo: 120.0,
             end_time: 1.0,
         }
     }
-    pub fn new_chain(&mut self) {
+    pub fn new_chain(
+        &mut self,
+        chain_name: Option<String>,
+        line: CodeLocation,
+    ) -> SonnyResult<ChainName> {
+        let return_name = if let Some(cn) = chain_name {
+            if self.anon_chain_depth > 0 {
+                return Err(Error::new(NamedChainInAnonChain(cn)).on_line(line));
+            }
+            ChainName::String({
+                let final_name = if !self.curr_chains.is_empty() {
+                    format!(
+                        "{}::{}",
+                        if let ChainName::String(ref super_name) =
+                            self.curr_chains.last().unwrap().name
+                        {
+                            super_name.clone()
+                        } else {
+                            unreachable!()
+                        },
+                        cn
+                    )
+                } else {
+                    cn
+                };
+                self.names_in_scope.push(NameInScope {
+                    name: final_name.clone(),
+                    contents: true,
+                });
+                final_name
+            })
+        } else {
+            ChainName::Anonymous({
+                self.next_anon_chain += 1;
+                self.anon_chain_depth += 1;
+                self.next_anon_chain - 1
+            })
+        };
         self.curr_chains.push(Chain {
-            name: ChainName::String(String::new()),
+            name: return_name.clone(),
             links: ChainLinks::Generic(Vec::new()),
             play: false,
+            true_args: Vec::new(),
         });
+        Ok(return_name)
     }
-    pub fn finalize_chain(&mut self, name: Option<String>) -> ChainName {
+    pub fn finalize_chain(&mut self) {
         let mut chain = self.curr_chains.pop().expect("No chain to finalize");
         // Turn chain into a Notes chain if necessary
         let mut convert = true;
@@ -235,7 +284,7 @@ impl Builder {
                         only_notes.push(NotesOrId::Notes(new_notes));
                     }
                     Operation::Operand(Operand::Id(ref notes_chain_name)) => {
-                        if let Some(ref notes_chain) = self.chains.get(notes_chain_name) {
+                        if let Some(ref notes_chain) = self.find_chain(notes_chain_name) {
                             if let ChainLinks::OnlyNotes(ref _notes_or_ids, period) =
                                 notes_chain.links
                             {
@@ -265,20 +314,38 @@ impl Builder {
                 },
             );
         }
-        // Assign name and insert into chains map
-        let chain_name;
-        if let Some(n) = name {
-            chain.name = ChainName::String(n.clone());
-            chain_name = chain.name.clone();
-            self.chains.insert(ChainName::String(n), chain);
+        if let ChainName::Anonymous(..) = chain.name {
+            self.anon_chain_depth -= 1;
         } else {
-            chain.name = ChainName::Anonymous(self.next_anon_chain);
-            chain_name = chain.name.clone();
-            self.chains
-                .insert(ChainName::Anonymous(self.next_anon_chain), chain);
-            self.next_anon_chain += 1;
+            self.names_in_scope.pop();
         }
-        chain_name
+        self.chains.insert(chain.name.clone(), chain);
+    }
+    pub fn find_chain(&self, name: &ChainName) -> Option<&Chain> {
+        match *name {
+            ChainName::Anonymous(..) => self.chains.get(name),
+            ChainName::String(ref name_str) => {
+                if let Some(chain) = self.chains.get(name) {
+                    Some(chain)
+                } else {
+                    for name_in_scope in &self.names_in_scope {
+                        if name_in_scope.contents {
+                            let test_name = format!("{}::{}", name_in_scope.name, name_str);
+                            if let Some(ref chain) = self.chains.get(&ChainName::String(test_name))
+                            {
+                                return Some(chain);
+                            }
+                        } else {
+                            if &name_in_scope.name.split("::").last().unwrap() == name_str {
+                                return self.chains
+                                    .get(&ChainName::String(name_in_scope.name.clone()));
+                            }
+                        }
+                    }
+                    None
+                }
+            }
+        }
     }
     pub fn play_chain(&mut self) {
         if let Some(ref mut chain) = self.curr_chains.last_mut() {

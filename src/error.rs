@@ -19,7 +19,8 @@ pub enum ErrorSpec {
     CantFindChain(ChainName),
     UnexpectedEndOfFile,
     ZeroBacklink,
-    PropertyOfGenericChain(String),
+    PropertyOfGenericChain(ChainName, String),
+    NamedChainInAnonChain(String),
 }
 
 #[derive(Debug, Clone)]
@@ -80,8 +81,12 @@ impl Error {
             CantFindChain(ref chain_name) => println!("The {} could not be found.", chain_name),
             UnexpectedEndOfFile => println!("Unexpected end of file."),
             ZeroBacklink => println!("Backlinks must be greater than 0."),
-            PropertyOfGenericChain(ref chain_name) => println!(
-                "The {} contains expressions, so properties cannot be taken from it.",
+            PropertyOfGenericChain(ref chain_name, ref property_name) => println!(
+                "The {} contains expressions, so the property '{}' cannot be taken from it.",
+                chain_name, property_name
+            ),
+            NamedChainInAnonChain(ref chain_name) => println!(
+                "A named chain: '{}' cannot be declared inside an anonymous chain.",
                 chain_name
             ),
         }

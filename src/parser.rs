@@ -82,6 +82,17 @@ impl Parser {
     }
     pub fn parse(mut self) -> SonnyResult<Builder> {
         // Parse everything into chains
+        self.builder.new_chain(
+            Some(
+                self.lexer
+                    .loc()
+                    .file
+                    .chars()
+                    .take_while(|&c| (c.is_alphanumeric() || c == '_') && c != '.')
+                    .collect::<String>(),
+            ),
+            self.lexer.loc(),
+        )?;
         while self.look.0 != Done {
             if self.look.1 == "tempo" {
                 self.mas("tempo")?;
@@ -90,6 +101,7 @@ impl Parser {
             }
             self.chain_declaration()?;
         }
+        // self.builder.finalize_chain();
         Ok(self.builder)
     }
     fn mat(&mut self, t: TokenType) -> SonnyResult<()> {
@@ -268,21 +280,21 @@ impl Parser {
         Ok(op)
     }
     fn term(&mut self) -> SonnyResult<Operand> {
-        Ok(match self.look.0 {
-            Num => Operand::Num(self.real()?),
+        match self.look.0 {
+            Num => Ok(Operand::Num(self.real()?)),
             Keyword => {
                 let op = match self.look.1.as_str() {
                     "time" => Operand::Time,
                     _ => return Err(Error::new(InvalidKeyword(self.look.1.clone())).on_line(self.lexer.loc())),
                 };
                 self.mat(Keyword)?;
-                op
+                Ok(op)
             }
             Id => {
                 let id = self.look.1.clone();
-                if !self.builder
-                    .chains
-                    .contains_key(&ChainName::String(id.clone()))
+                if self.builder
+                    .find_chain(&ChainName::String(id.clone()))
+                    .is_none()
                 {
                     return Err(Error::new(CantFindChain(ChainName::String(id.clone())))
                         .on_line(self.lexer.loc()));
@@ -290,31 +302,52 @@ impl Parser {
                 self.mat(Id)?;
                 if self.look.1 == "." {
                     self.mas(".")?;
-                    if self.look.1 == "start" {
+                    let property_name = self.look.1.clone();
+                    let operand = if self.look.1 == "start" {
                         self.mas("start")?;
-                        Operand::Property(ChainName::String(id), Property::Start)
+                        Ok(Operand::Property(
+                            ChainName::String(id.clone()),
+                            Property::Start,
+                        ))
                     } else if self.look.1 == "end" {
                         self.mas("end")?;
-                        Operand::Property(ChainName::String(id), Property::End)
+                        Ok(Operand::Property(
+                            ChainName::String(id.clone()),
+                            Property::End,
+                        ))
                     } else if self.look.1 == "dur" {
                         self.mas("dur")?;
-                        Operand::Property(ChainName::String(id), Property::Duration)
+                        Ok(Operand::Property(
+                            ChainName::String(id.clone()),
+                            Property::Duration,
+                        ))
                     } else {
-                        return Err(Error::new(ExpectedNotesProperty(self.look.clone()))
-                            .on_line(self.lexer.loc()));
+                        Err(Error::new(ExpectedNotesProperty(self.look.clone()))
+                            .on_line(self.lexer.loc()))
+                    };
+                    if let ChainLinks::Generic(..) = self.builder
+                        .find_chain(&ChainName::String(id.clone()))
+                        .expect("Unable to find chain")
+                        .links
+                    {
+                        return Err(Error::new(PropertyOfGenericChain(
+                            ChainName::String(id),
+                            property_name,
+                        )).on_line(self.lexer.loc()));
                     }
+                    operand
                 } else {
-                    Operand::Id(ChainName::String(id))
+                    Ok(Operand::Id(ChainName::String(id)))
                 }
             }
-            BackLink => self.backlink()?,
+            BackLink => Ok(self.backlink()?),
             Delimeter => {
                 if self.look.1 == "(" {
                     self.mas("(")?;
                     let expr = self.expression()?;
 
                     self.mas(")")?;
-                    Operand::Expression(Box::new(expr))
+                    Ok(Operand::Expression(Box::new(expr)))
                 } else {
                     return Err(Error::new(InvalidDelimeter(self.look.1.clone())).on_line(self.lexer.loc()));
                 }
@@ -322,11 +355,11 @@ impl Parser {
             NoteString => {
                 let note = Operand::Num(string_to_pitch(&self.look.1.clone()));
                 self.mat(NoteString)?;
-                note
+                Ok(note)
             }
             Done => return Err(Error::new(UnexpectedEndOfFile).on_line(self.lexer.loc())),
             _ => return Err(Error::new(InvalidTerm(self.look.clone())).on_line(self.lexer.loc())),
-        })
+        }
     }
     fn exp_un(&mut self) -> SonnyResult<Expression> {
         Ok(if &self.look.1 == "-" {
@@ -491,14 +524,15 @@ impl Parser {
         Ok(())
     }
     fn chain_declaration(&mut self) -> SonnyResult<ChainName> {
-        self.builder.new_chain();
         let mut name = None;
         if self.look.0 == Id && self.peek().1 == ":" {
             name = Some(self.look.1.clone());
             self.mat(Id)?;
             self.mas(":")?;
         }
+        let chain_name = self.builder.new_chain(name, self.lexer.loc())?;
         self.chain()?;
-        Ok(self.builder.finalize_chain(name))
+        self.builder.finalize_chain();
+        Ok(chain_name)
     }
 }
