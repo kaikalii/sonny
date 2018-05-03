@@ -8,21 +8,34 @@ use error::{ErrorSpec::*, *};
 use lexer::TokenType::*;
 use lexer::*;
 
+// Parses tokens from the Lexer and invokes the Builder accordingly
 #[derive(Debug)]
 pub struct Parser {
+    // The name of top-level file being compiled
     main_file_name: String,
+    // The lexical analyzer
     lexer: Lexer,
+    // The chain builder
     builder: Builder,
+    // The next token to be parsed
     look: Token,
+    // The next next token to be parsed
     next: Token,
+    // Wheter or not peek() has recently been called
     peeked: bool,
+    // The sample rate of the output
     sample_rate: f64,
+    // The current time. Used for correctly assigned periods to notes
     curr_time: f64,
+    // How many levels deep of parenthesis the parser is
     paren_level: usize,
+    // The last octave used by notes
     last_note_octave: usize,
 }
 
 impl Parser {
+    // Creates a new Parser which will parse the given file and
+    // invoke the given builder
     pub fn new(file: &str, builder: Builder) -> SonnyResult<Parser> {
         let mut lexer = Lexer::new(file)?;
         let look = lexer.lex();
@@ -39,8 +52,10 @@ impl Parser {
             last_note_octave: 3,
         })
     }
+    // Parse the whole file and return the builder so that it can be
+    // used by higher-level parsers or the write function itself.
     pub fn parse(mut self, finalize: bool) -> SonnyResult<Builder> {
-        // Parse everything into chains
+        // Create this file's top-level chain
         self.builder.new_chain(
             Some(
                 self.lexer
@@ -52,15 +67,17 @@ impl Parser {
             ),
             self.lexer.loc(),
         )?;
+        // While in this file
         while self.look.0 != Done {
+            // Check for tempo setting
             if self.look.1 == "tempo" {
                 self.mas("tempo")?;
                 self.mas(":")?;
                 self.builder.tempo = self.real()?;
-            } // check for "use" keyword
+            }
+            // check for "use" keyword
             if self.look.1 == "use" {
                 self.mas("use")?;
-                self.mas(":")?;
                 let mut filename = self.look.1.clone();
                 self.mat(Id)?;
                 if self.look.1 == "." {
@@ -70,8 +87,10 @@ impl Parser {
                         filename.push_str(&self.look.1);
                         self.mat(Id)?;
                     }
+                } else {
+                    filename.push_str(".sonny");
                 }
-                // Open the file
+                // Temporarily pop off this file's scope
                 let temp_scope = self.builder
                     .names_in_scope
                     .pop()
@@ -81,20 +100,30 @@ impl Parser {
                     .canonicalize()
                     .expect("can't canonicalize main file name")
                     .with_file_name(filename.clone());
+
+                // Create a new parser for the file. Give it this parser's builder.
+                // It's okay. It will get the builder back when the other parser
+                // is done.
                 self.builder = Parser::new(
                     &path.to_str().expect("unable to convert path to string"),
                     self.builder,
                 )?.parse(true)?;
 
+                // Put back the popped file scope.
                 self.builder.names_in_scope.push(temp_scope);
             }
+            // Declare a chain
             self.chain_declaration()?;
         }
+        // If this is not the top-level parser, finalize the top-level file chain
         if finalize {
             self.builder.finalize_chain();
         }
         Ok(self.builder)
     }
+    // Match the next token against a token type.
+    // Used when the desired match is something generic,
+    // link an Id or a Num
     fn mat(&mut self, t: TokenType) -> SonnyResult<()> {
         if self.look.0 == t {
             // println!("Expected {:?}, found {:?}", t, self.look.1.clone());
@@ -111,6 +140,9 @@ impl Parser {
             )
         }
     }
+    // Match the next token agaist a &str.
+    // Used when the desired match is a specific string.
+    // This and mat() should probably be combined into a single macro.
     fn mas(&mut self, s: &str) -> SonnyResult<()> {
         if &self.look.1 == s {
             // println!("Expected {:?}, found {:?}", s, self.look.1.clone());
@@ -120,6 +152,7 @@ impl Parser {
             } else {
                 self.look = self.lexer.lex();
             }
+            // This is probably not where this paren check should go.
             Ok(if s == "(" {
                 self.paren_level += 1;
             } else if s == ")" {
@@ -137,6 +170,8 @@ impl Parser {
             )).on_line(self.lexer.loc()))
         }
     }
+    // Look at the token after the next one without consuming
+    // the next one.
     fn peek(&mut self) -> Token {
         if !self.peeked {
             self.peeked = true;
@@ -144,6 +179,7 @@ impl Parser {
         }
         self.next.clone()
     }
+    // Match a real number
     fn real(&mut self) -> SonnyResult<f64> {
         let mut num_str = String::new();
         if self.look.1 == "pi" {
@@ -172,6 +208,7 @@ impl Parser {
             .parse::<f64>()
             .expect(&format!("Unable to parse real num string: {}", num_str)))
     }
+    // Convert a string representing a pitch into a number
     fn string_to_pitch(&mut self, s: &str) -> f64 {
         let bytes = s.as_bytes();
         let letter = bytes[0] as char;
@@ -218,6 +255,7 @@ impl Parser {
         let offset = local_offset + (octave * 12) as i32;
         16.3516f64 * 1.059463094359f64.powf(offset as f64)
     }
+    // Match a pitch
     fn pitch(&mut self) -> SonnyResult<f64> {
         Ok(if self.look.0 == NoteString {
             let note_string = self.look.1.clone();
@@ -233,6 +271,7 @@ impl Parser {
             return Err(Error::new(InvalidPitch(self.look.clone())).on_line(self.lexer.loc()));
         })
     }
+    // Match a sequence of '.'s
     fn dots(&mut self) -> SonnyResult<usize> {
         let mut result = 0;
         while self.look.1 == "." {
@@ -241,6 +280,7 @@ impl Parser {
         }
         Ok(result)
     }
+    // Match a duration
     fn duration(&mut self) -> SonnyResult<f64> {
         Ok(if self.look.0 == Num {
             if self.peek().1 == "/" {
@@ -280,6 +320,7 @@ impl Parser {
             frac
         })
     }
+    // Match a note which has both pitch and duration
     fn note(&mut self) -> SonnyResult<Note> {
         let pitch = self.pitch()?;
         self.mas(":")?;
@@ -293,6 +334,7 @@ impl Parser {
             },
         })
     }
+    // Match a series of ,-separated notes
     fn notes(&mut self) -> SonnyResult<Vec<Note>> {
         let mut note_list = Vec::new();
         note_list.push(self.note()?);
@@ -304,6 +346,7 @@ impl Parser {
         self.curr_time = 0.0;
         Ok(note_list)
     }
+    // Match a backlink
     fn backlink(&mut self) -> SonnyResult<Operand> {
         self.mas("!")?;
         let op = Operand::BackLink(if let Ok(x) = self.look.1.parse() {
@@ -318,6 +361,7 @@ impl Parser {
         self.mat(Num)?;
         Ok(op)
     }
+    // Match an expression term
     fn term(&mut self) -> SonnyResult<Operand> {
         match self.look.0 {
             Num => Ok(Operand::Num(self.real()?)),
@@ -396,6 +440,7 @@ impl Parser {
             _ => return Err(Error::new(InvalidTerm(self.look.clone())).on_line(self.lexer.loc())),
         }
     }
+    // Match a unary expression
     fn exp_un(&mut self) -> SonnyResult<Expression> {
         Ok(if &self.look.1 == "-" {
             self.mas("-")?;
@@ -431,6 +476,7 @@ impl Parser {
             Expression(Operation::Operand(self.term()?))
         })
     }
+    // Match a min/max expression
     fn exp_min_max(&mut self) -> SonnyResult<Expression> {
         let mut expr = self.exp_un()?;
         loop {
@@ -452,6 +498,7 @@ impl Parser {
         }
         Ok(expr)
     }
+    // Match a power or logarithm expression
     fn exp_pow(&mut self) -> SonnyResult<Expression> {
         let mut expr;
         if self.look.1 == "log" {
@@ -475,6 +522,7 @@ impl Parser {
         }
         Ok(expr)
     }
+    // Match a multiplication, division, or remainder expression
     fn exp_mul(&mut self) -> SonnyResult<Expression> {
         let mut expr = self.exp_pow()?;
         loop {
@@ -502,6 +550,7 @@ impl Parser {
         }
         Ok(expr)
     }
+    // Match an addition or subtraction expression
     fn exp_add(&mut self) -> SonnyResult<Expression> {
         let mut expr = self.exp_mul()?;
         loop {
@@ -523,27 +572,33 @@ impl Parser {
         }
         Ok(expr)
     }
+    // Match an entire expression
     fn expression(&mut self) -> SonnyResult<Expression> {
         self.exp_add()
     }
+    // Match a chain link
     fn link(&mut self) -> SonnyResult<()> {
+        // Check for subchains
         Ok(if self.look.1 == "|" {
             self.mas("|")?;
             let name = self.chain_declaration()?;
             self.mas("|")?;
             self.builder
                 .new_expression(Expression(Operation::Operand(Operand::Id(name))))
+        // Check for notes
         } else if self.look.1 == "{" {
             self.mas("{")?;
             let notes = self.notes()?;
             self.mas("}")?;
             self.builder
                 .new_expression(Expression(Operation::Operand(Operand::Notes(notes))))
+        // It's an expression otherwise
         } else {
             let expr = self.expression()?;
             self.builder.new_expression(expr);
         })
     }
+    // Match the body of a chain
     fn chain(&mut self) -> SonnyResult<()> {
         self.link()?;
         while self.look.1 == "->" {
@@ -561,6 +616,7 @@ impl Parser {
         }
         Ok(())
     }
+    // Match an entire chain, including the optional name
     fn chain_declaration(&mut self) -> SonnyResult<ChainName> {
         let mut name = None;
         if self.look.0 == Id && self.peek().1 == ":" {
