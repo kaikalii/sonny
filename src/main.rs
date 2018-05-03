@@ -7,7 +7,7 @@ extern crate rayon;
 mod lexer;
 mod builder;
 mod error;
-mod functions;
+mod evaluate;
 mod parser;
 
 use std::env;
@@ -24,6 +24,7 @@ fn main() {
     let mut sample_rate = 32000.0;
     let mut window_size = 100;
     let mut file_name = None;
+    // Parse command args for input and flags
     while let Some(ref arg) = args.next() {
         match arg.to_string().as_ref() {
             "-r" | "--sample_rate" => if let Some(ref sr_str) = args.next() {
@@ -61,10 +62,13 @@ Options:
         }
     }
     if let Some(ref file_name) = file_name {
+        // Initialize the parser
         match Parser::new(file_name, Builder::new()) {
+            // start parsing the file
             Ok(parser) => match parser.parse(false) {
+                // make functions
                 Ok(mut builder) => {
-                    builder.make_functions();
+                    // output sound
                     write(builder, sample_rate, window_size);
                 }
                 Err(error) => error.report(),
@@ -89,16 +93,18 @@ fn write(builder: Builder, sample_rate: f64, window_size: usize) {
 
     // output each outchain
     for name in builder.chains.iter().filter(|f| f.1.play).map(|f| f.0) {
+        // populate the sample array with its own indicies so because par_iter doesn't have enumerate()
         let mut song = vec![(0f64, 0usize); (sample_rate * end) as usize];
         for (i, (_, ref mut x)) in song.iter_mut().enumerate() {
             *x = i;
         }
+        // run each sample window as a batch
         for window_start in (0..(song.len() / window_size)).map(|x| x * window_size) {
             song[window_start..(window_start + window_size)]
                 .par_iter_mut()
                 .for_each(|(sample, i)| {
                     let time = *i as f64 / sample_rate;
-                    *sample = builder.evaluate_function(&name, &[], time, 0);
+                    *sample = builder.evaluate_function(&name, &[], time);
                 });
         }
 
@@ -112,7 +118,7 @@ fn write(builder: Builder, sample_rate: f64, window_size: usize) {
         let mut writer = hound::WavWriter::create(
             &format!(
                 "{}.wav",
-                if let ChainName::String(chain_name) = name {
+                if let ChainName::Scoped(chain_name) = name {
                     chain_name.split("::").last().unwrap().to_string()
                 } else {
                     name.to_string()

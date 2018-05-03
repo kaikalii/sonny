@@ -330,13 +330,13 @@ impl Parser {
                 Ok(op)
             }
             Id => {
-                let mut name = ChainName::String(self.look.1.clone());
+                let mut name = ChainName::Scoped(self.look.1.clone());
                 self.mat(Id)?;
                 while self.look.1 == "::" {
                     self.mas("::")?;
                     let next_id = self.look.1.clone();
                     self.mat(Id)?;
-                    if let ChainName::String(ref mut name) = name {
+                    if let ChainName::Scoped(ref mut name) = name {
                         name.push_str("::");
                         name.push_str(&next_id);
                     }
