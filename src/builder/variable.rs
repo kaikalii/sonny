@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::f64;
 use std::ops;
 
@@ -14,6 +15,38 @@ impl Variable {
         match self {
             Number(x) => x,
             Array(x) => x.into_iter().next().expect("Array is empty"),
+        }
+    }
+}
+
+impl PartialEq for Variable {
+    fn eq(&self, b: &Variable) -> bool {
+        use self::Variable::*;
+        match self {
+            Number(x) => match b {
+                Number(y) => *x == *y,
+                Array(ref y) => y.iter().all(|y| x == y),
+            },
+            Array(ref x) => match b {
+                Number(y) => x.iter().all(|x| x == y),
+                Array(ref y) => x.iter().zip(y.iter()).all(|(x, y)| x == y),
+            },
+        }
+    }
+}
+
+impl PartialOrd for Variable {
+    fn partial_cmp(&self, b: &Variable) -> Option<Ordering> {
+        use self::Variable::*;
+        match self {
+            Number(x) => match b {
+                Number(y) => x.partial_cmp(y),
+                Array(..) => None,
+            },
+            Array(..) => match b {
+                Number(..) => None,
+                Array(..) => None,
+            },
         }
     }
 }

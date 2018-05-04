@@ -41,6 +41,14 @@ pub enum Operation {
     Power(Operand, Operand),
     Min(Operand, Operand),
     Max(Operand, Operand),
+    LessThan(Operand, Operand),
+    GreaterThan(Operand, Operand),
+    LessThanOrEqual(Operand, Operand),
+    GreaterThanOrEqual(Operand, Operand),
+    Equal(Operand, Operand),
+    NotEqual(Operand, Operand),
+    Or(Operand, Operand),
+    And(Operand, Operand),
     Negate(Operand),
     Sine(Operand),
     Cosine(Operand),
@@ -49,11 +57,12 @@ pub enum Operation {
     AbsoluteValue(Operand),
     Logarithm(Operand),
     Operand(Operand),
+    Ternary(Operand, Operand, Operand),
 }
 
 impl Operation {
     // return a pair of the first and optinal second operand of the operation
-    pub fn operands(&self) -> (&Operand, Option<&Operand>) {
+    pub fn operands(&self) -> (&Operand, Option<&Operand>, Option<&Operand>) {
         use self::Operation::*;
         match *self {
             Add(ref a, ref b)
@@ -63,9 +72,18 @@ impl Operation {
             | Remainder(ref a, ref b)
             | Power(ref a, ref b)
             | Min(ref a, ref b)
-            | Max(ref a, ref b) => (a, Some(b)),
+            | Max(ref a, ref b)
+            | LessThan(ref a, ref b)
+            | GreaterThan(ref a, ref b)
+            | LessThanOrEqual(ref a, ref b)
+            | GreaterThanOrEqual(ref a, ref b)
+            | Equal(ref a, ref b)
+            | NotEqual(ref a, ref b)
+            | Or(ref a, ref b)
+            | And(ref a, ref b) => (a, Some(b), None),
             Negate(ref a) | Sine(ref a) | Cosine(ref a) | Ceiling(ref a) | Floor(ref a)
-            | AbsoluteValue(ref a) | Logarithm(ref a) | Operand(ref a) => (a, None),
+            | AbsoluteValue(ref a) | Logarithm(ref a) | Operand(ref a) => (a, None, None),
+            Ternary(ref a, ref b, ref c) => (a, Some(b), Some(c)),
         }
     }
 }

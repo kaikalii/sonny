@@ -203,7 +203,25 @@ impl Lexer {
             else {
                 token.push(c);
                 match c {
-                    '(' | ')' | '{' | '}' | '[' | ']' | '|' | ',' => return Token(Delimeter, token),
+                    '(' | ')' | '{' | '}' | '[' | ']' | ',' => return Token(Delimeter, token),
+                    '|' => if let Some(c) = self.get_char() {
+                        if c == '|' {
+                            token.push(c);
+                            return Token(Delimeter, token);
+                        } else {
+                            self.put_back();
+                            return Token(Operator, token);
+                        }
+                    },
+                    '&' => if let Some(c) = self.get_char() {
+                        if c == '&' {
+                            token.push(c);
+                            return Token(Operator, token);
+                        } else {
+                            self.put_back();
+                            return Token(Unknown, token);
+                        }
+                    },
                     ':' => {
                         if let Some(c) = self.get_char() {
                             if c == ':' {
@@ -214,21 +232,54 @@ impl Lexer {
                             return Token(Delimeter, token);
                         }
                     }
-                    '!' => return Token(BackLink, token),
+                    '=' => if let Some(c) = self.get_char() {
+                        if c == '=' {
+                            token.push(c);
+                            return Token(Operator, token);
+                        } else {
+                            self.put_back();
+                            return Token(Unknown, token);
+                        }
+                    },
+                    '!' => if let Some(c) = self.get_char() {
+                        if c == '=' {
+                            token.push(c);
+                            return Token(Operator, token);
+                        } else {
+                            self.put_back();
+                            return Token(BackLink, token);
+                        }
+                    },
+                    '<' => if let Some(c) = self.get_char() {
+                        if c == '=' {
+                            token.push(c);
+                            return Token(Operator, token);
+                        } else {
+                            self.put_back();
+                            return Token(Operator, token);
+                        }
+                    },
+                    '>' => if let Some(c) = self.get_char() {
+                        if c == '=' {
+                            token.push(c);
+                            return Token(Operator, token);
+                        } else {
+                            self.put_back();
+                            return Token(Operator, token);
+                        }
+                    },
                     '.' => return Token(Dot, token),
                     '_' => return Token(Rest, token),
-                    '+' | '*' | '%' | '^' => return Token(Operator, token),
-                    '-' => {
-                        if let Some(c) = self.get_char() {
-                            if c == '>' {
-                                token.push(c);
-                                return Token(Delimeter, token);
-                            } else {
-                                self.put_back();
-                                return Token(Operator, token);
-                            }
+                    '+' | '*' | '%' | '^' | '?' => return Token(Operator, token),
+                    '-' => if let Some(c) = self.get_char() {
+                        if c == '>' {
+                            token.push(c);
+                            return Token(Delimeter, token);
+                        } else {
+                            self.put_back();
+                            return Token(Operator, token);
                         }
-                    }
+                    },
                     '/' => {
                         if let Some(c) = self.get_char() {
                             match c {

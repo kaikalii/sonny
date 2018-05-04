@@ -142,9 +142,10 @@ impl Builder {
         time: f64,
     ) -> Variable {
         use self::Operation::*;
-        let (a, b) = expression.0.operands();
+        let (a, b, c) = expression.0.operands();
         let x = self.evaluate_operand(a, name, args, time);
-        let y = b.map(|bb| self.evaluate_operand(bb, name, args, time));
+        let y = b.map(|b| self.evaluate_operand(b, name, args, time));
+        let z = c.map(|c| self.evaluate_operand(c, name, args, time));
         match expression.0 {
             Add(..) => x + y.expect("failed to unwrap y in add"),
             Subtract(..) => x - y.expect("failed to unwrap y in subtract"),
@@ -154,6 +155,38 @@ impl Builder {
             Power(..) => x.pow(y.expect("failed to unwrap y in min")),
             Min(..) => x.min(y.expect("failed to unwrap y in min")),
             Max(..) => x.max(y.expect("failed to unwrap y in max")),
+            LessThan(..) => if x < y.expect("failed to unwrap y in compare") {
+                Variable::Number(1.0)
+            } else {
+                Variable::Number(0.0)
+            },
+            GreaterThan(..) => if x > y.expect("failed to unwrap y in compare") {
+                Variable::Number(1.0)
+            } else {
+                Variable::Number(0.0)
+            },
+            LessThanOrEqual(..) => if x <= y.expect("failed to unwrap y in compare") {
+                Variable::Number(1.0)
+            } else {
+                Variable::Number(0.0)
+            },
+            GreaterThanOrEqual(..) => if x >= y.expect("failed to unwrap y in compare") {
+                Variable::Number(1.0)
+            } else {
+                Variable::Number(0.0)
+            },
+            Equal(..) => if x == y.expect("failed to unwrap y in equal") {
+                Variable::Number(1.0)
+            } else {
+                Variable::Number(0.0)
+            },
+            NotEqual(..) => if x != y.expect("failed to unwrap y in not equal") {
+                Variable::Number(1.0)
+            } else {
+                Variable::Number(0.0)
+            },
+            Or(..) => x.max(y.expect("failed to unwrap y in or")),
+            And(..) => x.min(y.expect("failed to unwrap y in or")),
             Negate(..) => -x,
             Sine(..) => x.sin(),
             Cosine(..) => x.cos(),
@@ -162,6 +195,11 @@ impl Builder {
             AbsoluteValue(..) => x.abs(),
             Logarithm(..) => x.ln(),
             Operand(..) => x,
+            Ternary(..) => if x != Variable::Number(0.0) {
+                y.expect("failed to unwrap y in ternay")
+            } else {
+                z.expect("failed to unwrap z in ternay")
+            },
         }
     }
 

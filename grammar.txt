@@ -89,7 +89,24 @@ exp_add -> exp_mul + exp_add
 	| exp_mul - exp_add
 	| exp_mul
 
-expression -> exp_add
+exp_cmp -> exp_add == exp_cmp
+	| exp_add != exp_cmp
+	| exp_add < exp_cmp
+	| exp_add > exp_cmp
+	| exp_add <= exp_cmp
+	| exp_add >= exp_cmp
+	| exp_add
+
+exp_and -> exp_cmp && exp_and
+	| exp_cmp
+
+exp_or -> exp_cmp && exp_or
+	| exp_cmp
+
+exp_tern -> exp_or ? exp_tern : exp_tern
+	| exp_or
+
+expression -> exp_tern
 
 link -> expression
 	| |chain_declaration|

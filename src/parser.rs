@@ -572,9 +572,25 @@ impl Parser {
         }
         Ok(expr)
     }
+    // Match a ternary expression
+    fn exp_tern(&mut self) -> SonnyResult<Expression> {
+        let mut expr = self.exp_add()?;
+        if self.look.1 == "?" {
+            self.mas("?")?;
+            expr = Expression(Operation::Ternary(
+                Operand::Expression(Box::new(expr)),
+                Operand::Expression({ Box::new(self.exp_tern()?) }),
+                Operand::Expression({
+                    self.mas(":")?;
+                    Box::new(self.exp_tern()?)
+                }),
+            ));
+        }
+        Ok(expr)
+    }
     // Match an entire expression
     fn expression(&mut self) -> SonnyResult<Expression> {
-        self.exp_add()
+        self.exp_tern()
     }
     // Match a chain link
     fn link(&mut self) -> SonnyResult<()> {
