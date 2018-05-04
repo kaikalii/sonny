@@ -103,7 +103,7 @@ fn write(builder: Builder, sample_rate: f64, window_size: usize) {
                 .par_iter_mut()
                 .for_each(|(sample, i)| {
                     let time = *i as f64 / sample_rate;
-                    *sample = builder.evaluate_function(&name, &[], time).to_f64();
+                    *sample = builder.evaluate_chain(&name, &[], time).to_f64();
                 });
         }
 

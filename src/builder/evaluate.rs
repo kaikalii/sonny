@@ -78,7 +78,7 @@ impl Builder {
         &self,
         operand: &Operand,
         name: &ChainName,
-        args: &[Variable],
+        args: &[&Variable],
         time: f64,
     ) -> Variable {
         use Operand::*;
@@ -86,7 +86,7 @@ impl Builder {
             // for Nums, simply return the num
             Var(ref x) => x.clone(),
             // for Ids, call the associated function
-            Id(ref id) => self.evaluate_function(id, args, time),
+            Id(ref id) => self.evaluate_chain(id, args, time),
             // for Notes Properties...
             Property(ref id, property) => if let Some(chain) = self.find_chain(id) {
                 // Ensure that this is in fact an OnlyNotes chain.
@@ -117,7 +117,7 @@ impl Builder {
             BackLink(num) => args[num - 1].clone(),
             // It's technically not possible to have notes here, since
             // all notes operands are removed when a chain is finalized.
-            // Just make sure. You never know.
+            // Just make sure. You never know. This might change.
             Notes(ref notes) => {
                 let mut result = 0.0;
                 for note in notes {
@@ -138,7 +138,7 @@ impl Builder {
         &self,
         expression: &Expression,
         name: &ChainName,
-        args: &[Variable],
+        args: &[&Variable],
         time: f64,
     ) -> Variable {
         use self::Operation::*;
@@ -203,21 +203,30 @@ impl Builder {
         }
     }
 
-    // Pretend a chain is a function and evaluate it as such
-    pub fn evaluate_function(&self, name: &ChainName, args: &[Variable], time: f64) -> Variable {
+    // Evaluate a chain
+    pub fn evaluate_chain(&self, name: &ChainName, args: &[&Variable], time: f64) -> Variable {
         if let Some(chain) = self.find_chain(name) {
             match chain.links {
                 ChainLinks::Generic(ref expressions) => {
                     let mut results: Vec<Variable> = Vec::new();
                     for (_i, expression) in expressions.iter().enumerate() {
-                        let mut these_args: Vec<Variable> = Vec::new();
-                        for r in results.iter().rev() {
-                            these_args.push(r.clone());
+                        let mut results_collector: Vec<Variable> = Vec::new();
+                        {
+                            // Create the args to be passed to the evaluate_expression() call
+                            let mut these_args: Vec<&Variable> = Vec::new();
+                            // Add all previous arg results of this chain reversed
+                            these_args.extend(results.iter().rev());
+                            // Add the args coming into this chain
+                            these_args.extend(args);
+
+                            results_collector.push(self.evaluate_expression(
+                                expression,
+                                name,
+                                &these_args,
+                                time,
+                            ));
                         }
-                        for a in args {
-                            these_args.push(a.clone());
-                        }
-                        results.push(self.evaluate_expression(expression, name, &these_args, time));
+                        results.extend(results_collector.into_iter());
                     }
                     results
                         .into_iter()
