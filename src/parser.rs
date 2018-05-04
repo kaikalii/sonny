@@ -572,9 +572,79 @@ impl Parser {
         }
         Ok(expr)
     }
+    // Match a comparison expression
+    fn exp_cmp(&mut self) -> SonnyResult<Expression> {
+        let mut expr = self.exp_add()?;
+        loop {
+            if self.look.1 == "==" {
+                self.mas("==")?;
+                expr = Expression(Operation::Equal(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_add()?)),
+                ));
+            } else if self.look.1 == "!=" {
+                self.mas("!=")?;
+                expr = Expression(Operation::NotEqual(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_add()?)),
+                ));
+            } else if self.look.1 == "<" {
+                self.mas("<")?;
+                expr = Expression(Operation::LessThan(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_add()?)),
+                ));
+            } else if self.look.1 == ">" {
+                self.mas(">")?;
+                expr = Expression(Operation::GreaterThan(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_add()?)),
+                ));
+            } else if self.look.1 == "<=" {
+                self.mas("<=")?;
+                expr = Expression(Operation::LessThanOrEqual(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_add()?)),
+                ));
+            } else if self.look.1 == ">=" {
+                self.mas(">=")?;
+                expr = Expression(Operation::GreaterThanOrEqual(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_add()?)),
+                ));
+            } else {
+                break;
+            }
+        }
+        Ok(expr)
+    }
+    // Match an OR expression
+    fn exp_or(&mut self) -> SonnyResult<Expression> {
+        let mut expr = self.exp_cmp()?;
+        if self.look.1 == "||" {
+            self.mas("||")?;
+            expr = Expression(Operation::Or(
+                Operand::Expression(Box::new(expr)),
+                Operand::Expression(Box::new(self.exp_or()?)),
+            ));
+        }
+        Ok(expr)
+    }
+    // Match an AND expression
+    fn exp_and(&mut self) -> SonnyResult<Expression> {
+        let mut expr = self.exp_or()?;
+        if self.look.1 == "&&" {
+            self.mas("&&")?;
+            expr = Expression(Operation::And(
+                Operand::Expression(Box::new(expr)),
+                Operand::Expression(Box::new(self.exp_and()?)),
+            ));
+        }
+        Ok(expr)
+    }
     // Match a ternary expression
     fn exp_tern(&mut self) -> SonnyResult<Expression> {
-        let mut expr = self.exp_add()?;
+        let mut expr = self.exp_and()?;
         if self.look.1 == "?" {
             self.mas("?")?;
             expr = Expression(Operation::Ternary(
