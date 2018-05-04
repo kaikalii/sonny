@@ -426,6 +426,11 @@ impl Parser {
 
                     self.mas(")")?;
                     Ok(Operand::Expression(Box::new(expr)))
+                } else if self.look.1 == "|" {
+                    self.mas("|")?;
+                    let name = self.chain_declaration()?;
+                    self.mas("|")?;
+                    Ok(Operand::Id(name))
                 } else {
                     return Err(Error::new(InvalidDelimeter(self.look.1.clone())).on_line(self.lexer.loc()));
                 }
@@ -664,25 +669,20 @@ impl Parser {
     }
     // Match a chain link
     fn link(&mut self) -> SonnyResult<()> {
-        // Check for subchains
-        Ok(if self.look.1 == "|" {
-            self.mas("|")?;
-            let name = self.chain_declaration()?;
-            self.mas("|")?;
-            self.builder
-                .new_expression(Expression(Operation::Operand(Operand::Id(name))))
-        // Check for notes
-        } else if self.look.1 == "{" {
-            self.mas("{")?;
-            let notes = self.notes()?;
-            self.mas("}")?;
-            self.builder
-                .new_expression(Expression(Operation::Operand(Operand::Notes(notes))))
-        // It's an expression otherwise
-        } else {
-            let expr = self.expression()?;
-            self.builder.new_expression(expr);
-        })
+        Ok(
+            // Check for notes
+            if self.look.1 == "{" {
+                self.mas("{")?;
+                let notes = self.notes()?;
+                self.mas("}")?;
+                self.builder
+                    .new_expression(Expression(Operation::Operand(Operand::Notes(notes))))
+            // It's an expression otherwise
+            } else {
+                let expr = self.expression()?;
+                self.builder.new_expression(expr);
+            },
+        )
     }
     // Match the body of a chain
     fn chain(&mut self) -> SonnyResult<()> {

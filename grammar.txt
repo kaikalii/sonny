@@ -61,6 +61,7 @@ term -> real
 	| id
 	| backlink
 	| note
+	| |chain_declaration|
 	| ( expression )
 
 exp_un -> - term
@@ -109,7 +110,6 @@ exp_tern -> exp_or ? exp_tern : exp_tern
 expression -> exp_tern
 
 link -> expression
-	| |chain_declaration|
 	| { notes }
 
 chain -> link -> chain

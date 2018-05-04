@@ -207,10 +207,10 @@ impl Lexer {
                     '|' => if let Some(c) = self.get_char() {
                         if c == '|' {
                             token.push(c);
-                            return Token(Delimeter, token);
+                            return Token(Operator, token);
                         } else {
                             self.put_back();
-                            return Token(Operator, token);
+                            return Token(Delimeter, token);
                         }
                     },
                     '&' => if let Some(c) = self.get_char() {
