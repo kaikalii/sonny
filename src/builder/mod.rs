@@ -1,9 +1,14 @@
+pub mod evaluate;
+pub mod variable;
+
 use std::collections::HashMap;
 use std::f64;
 use std::fmt;
 
 use error::{ErrorSpec::*, *};
 use lexer::CodeLocation;
+
+use self::variable::*;
 
 // Different types of Notes properties
 #[derive(Debug, Clone, Copy)]
@@ -16,7 +21,7 @@ pub enum Property {
 // Different types of operands
 #[derive(Debug, Clone)]
 pub enum Operand {
-    Num(f64),
+    Var(Variable),
     Id(ChainName),
     Property(ChainName, Property),
     BackLink(usize),

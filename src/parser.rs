@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use either::*;
 
-use builder::*;
+use builder::{variable::*, *};
 use error::{ErrorSpec::*, *};
 use lexer::TokenType::*;
 use lexer::*;
@@ -364,7 +364,7 @@ impl Parser {
     // Match an expression term
     fn term(&mut self) -> SonnyResult<Operand> {
         match self.look.0 {
-            Num => Ok(Operand::Num(self.real()?)),
+            Num => Ok(Operand::Var(Variable::Number(self.real()?))),
             Keyword => {
                 let op = match self.look.1.as_str() {
                     "time" => Operand::Time,
@@ -432,7 +432,7 @@ impl Parser {
             }
             NoteString => {
                 let note_string = self.look.1.clone();
-                let note = Operand::Num(self.string_to_pitch(&note_string));
+                let note = Operand::Var(Variable::Number(self.string_to_pitch(&note_string)));
                 self.mat(NoteString)?;
                 Ok(note)
             }

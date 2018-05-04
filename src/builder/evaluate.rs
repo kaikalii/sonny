@@ -2,7 +2,7 @@
 
 use std::f64;
 
-use builder::*;
+use builder::{variable::*, *};
 
 impl ChainLinks {
     // When called on OnlyNotes links, this function returns the note whos period contains
@@ -78,13 +78,13 @@ impl Builder {
         &self,
         operand: &Operand,
         name: &ChainName,
-        args: &[f64],
+        args: &[Variable],
         time: f64,
-    ) -> f64 {
+    ) -> Variable {
         use Operand::*;
         match *operand {
             // for Nums, simply return the num
-            Num(x) => x,
+            Var(ref x) => x.clone(),
             // for Ids, call the associated function
             Id(ref id) => self.evaluate_function(id, args, time),
             // for Notes Properties...
@@ -97,13 +97,13 @@ impl Builder {
                     if let Some(note) = chain.links.find_note(time, 0.0, &self) {
                         use builder::Property::*;
                         match property {
-                            Start => note.period.start,
-                            End => note.period.end,
-                            Duration => note.period.duration(),
+                            Start => Variable::Number(note.period.start),
+                            End => Variable::Number(note.period.end),
+                            Duration => Variable::Number(note.period.duration()),
                         }
                     // return zero if time is after the period of the notes
                     } else {
-                        0.0
+                        Variable::Number(0.0)
                     }
                 } else {
                     panic!("Reference chain is not a note chain");
@@ -112,9 +112,9 @@ impl Builder {
                 panic!("Unknown id {:?}", id)
             },
             // For time, simply return the time
-            Time => time,
+            Time => Variable::Number(time),
             // For Backlinks, reference the arguments passed
-            BackLink(num) => args[num - 1],
+            BackLink(num) => args[num - 1].clone(),
             // It's technically not possible to have notes here, since
             // all notes operands are removed when a chain is finalized.
             // Just make sure. You never know.
@@ -126,7 +126,7 @@ impl Builder {
                         break;
                     }
                 }
-                result
+                Variable::Number(result)
             }
             // Evaluate expressions
             Expression(ref expression) => self.evaluate_expression(expression, name, args, time),
@@ -138,9 +138,9 @@ impl Builder {
         &self,
         expression: &Expression,
         name: &ChainName,
-        args: &[f64],
+        args: &[Variable],
         time: f64,
-    ) -> f64 {
+    ) -> Variable {
         use self::Operation::*;
         let (a, b) = expression.0.operands();
         let x = self.evaluate_operand(a, name, args, time);
@@ -151,7 +151,7 @@ impl Builder {
             Multiply(..) => x * y.expect("failed to unwrap y in multiply"),
             Divide(..) => x / y.expect("failed to unwrap y in divide"),
             Remainder(..) => x % y.expect("failed to unwrap y in remainder"),
-            Power(..) => x.powf(y.expect("failed to unwrap y in min")),
+            Power(..) => x.pow(y.expect("failed to unwrap y in min")),
             Min(..) => x.min(y.expect("failed to unwrap y in min")),
             Max(..) => x.max(y.expect("failed to unwrap y in max")),
             Negate(..) => -x,
@@ -160,34 +160,39 @@ impl Builder {
             Ceiling(..) => x.ceil(),
             Floor(..) => x.floor(),
             AbsoluteValue(..) => x.abs(),
-            Logarithm(..) => x.log(f64::consts::E),
+            Logarithm(..) => x.ln(),
             Operand(..) => x,
         }
     }
 
     // Pretend a chain is a function and evaluate it as such
-    pub fn evaluate_function(&self, name: &ChainName, args: &[f64], time: f64) -> f64 {
+    pub fn evaluate_function(&self, name: &ChainName, args: &[Variable], time: f64) -> Variable {
         if let Some(chain) = self.find_chain(name) {
             match chain.links {
                 ChainLinks::Generic(ref expressions) => {
-                    let mut results = Vec::new();
+                    let mut results: Vec<Variable> = Vec::new();
                     for (_i, expression) in expressions.iter().enumerate() {
-                        let mut these_args = Vec::new();
-                        for &r in results.iter().rev() {
-                            these_args.push(r);
+                        let mut these_args: Vec<Variable> = Vec::new();
+                        for r in results.iter().rev() {
+                            these_args.push(r.clone());
                         }
-                        for &a in args {
-                            these_args.push(a);
+                        for a in args {
+                            these_args.push(a.clone());
                         }
                         results.push(self.evaluate_expression(expression, name, &these_args, time));
                     }
-                    *results.last().expect("generic chain gave no last result")
+                    results
+                        .into_iter()
+                        .last()
+                        .expect("generic chain gave no last result")
                 }
-                ChainLinks::OnlyNotes(..) => chain
-                    .links
-                    .find_note(time, 0.0, &self)
-                    .map(|n| n.pitch)
-                    .unwrap_or(0.0),
+                ChainLinks::OnlyNotes(..) => Variable::Number(
+                    chain
+                        .links
+                        .find_note(time, 0.0, &self)
+                        .map(|n| n.pitch)
+                        .unwrap_or(0.0),
+                ),
             }
         } else {
             panic!("No function named '{}'", name);
