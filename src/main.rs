@@ -20,7 +20,7 @@ fn main() {
     let mut args = env::args();
     args.next();
     let mut sample_rate = 32000.0;
-    let mut window_size = 1000;
+    let mut window_size = 4000;
     let mut file_name = None;
     let mut start_time = 0f64;
     let mut end_time = None;
@@ -70,6 +70,7 @@ Options:
     -r | --sample_rate      Set the sample rate of the output file
                             in samples/second (default is 32000)
     -w | --window           Set the size of the processing window
+                            (default it )
     -s | --start            Set the start time of the output file
     -e | --end              Set the end time of the output file
 "
