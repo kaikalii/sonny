@@ -130,6 +130,10 @@ impl Builder {
                 .into_par_iter()
                 .map(|i| Variable::Number(time + i as f64 / sample_rate))
                 .collect(),
+            // For window size, simply return the window size
+            WindowSize => vec![Variable::Number(window_size as f64); window_size],
+            // For sample rate, simply return the sample rate
+            SampleRate => vec![Variable::Number(sample_rate as f64); window_size],
             // For Backlinks, reference the arguments passed
             BackLink(num) => args[num - 1].clone(),
             // It's technically not possible to have notes here, since

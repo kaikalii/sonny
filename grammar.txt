@@ -52,7 +52,7 @@ id -> letter id_chars
 
 built_in -> start | end
 
-global -> time
+global -> time | window_size | sample_rate
 
 backlink -> ! num
 

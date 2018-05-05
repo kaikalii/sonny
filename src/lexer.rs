@@ -6,8 +6,28 @@ use std::path::PathBuf;
 use error::*;
 
 static KEYWORDS: &[&'static str] = &[
-    "time", "sin", "cos", "ceil", "floor", "abs", "min", "max", "log", "end", "out", "dur", "w",
-    "h", "q", "e", "s", "ts", "tempo", "use",
+    "time",
+    "sin",
+    "cos",
+    "ceil",
+    "floor",
+    "abs",
+    "min",
+    "max",
+    "log",
+    "end",
+    "out",
+    "dur",
+    "w",
+    "h",
+    "q",
+    "e",
+    "s",
+    "ts",
+    "tempo",
+    "use",
+    "window_size",
+    "sample_rate",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]

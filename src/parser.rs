@@ -368,6 +368,8 @@ impl Parser {
             Keyword => {
                 let op = match self.look.1.as_str() {
                     "time" => Operand::Time,
+                    "window_size" => Operand::WindowSize,
+                    "sample_rate" => Operand::SampleRate,
                     _ => return Err(Error::new(InvalidKeyword(self.look.1.clone())).on_line(self.lexer.loc())),
                 };
                 self.mat(Keyword)?;

@@ -26,6 +26,8 @@ pub enum Operand {
     Property(ChainName, Property),
     BackLink(usize),
     Time,
+    WindowSize,
+    SampleRate,
     Notes(Vec<Note>),
     Expression(Box<Expression>),
 }
