@@ -80,6 +80,10 @@ impl Parser {
                 self.mas("include")?;
                 let mut filename = self.look.1.clone();
                 self.mat(Id)?;
+                while self.look.1 == "::" {
+                    self.mas("::")?;
+                    filename.push_str(&format!("/{}", self.look.1));
+                }
                 if self.look.1 == "." {
                     self.mas(".")?;
                     if self.look.0 == Id {
@@ -88,7 +92,7 @@ impl Parser {
                         self.mat(Id)?;
                     }
                 } else {
-                    filename.push_str(".sonny");
+                    filename.push_str(".son");
                 }
                 // Temporarily pop off this file's scope
                 let temp_scope = self.builder
@@ -97,8 +101,8 @@ impl Parser {
                     .expect("no chains in scope");
 
                 let path = PathBuf::from(format!("./{}", self.main_file_name))
-                    .canonicalize()
-                    .expect("can't canonicalize main file name")
+                    // .canonicalize()
+                    // .expect("can't canonicalize main file name")
                     .with_file_name(filename.clone());
 
                 // Create a new parser for the file. Give it this parser's builder.

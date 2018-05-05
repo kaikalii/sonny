@@ -1,0 +1,28 @@
+include std::gen
+
+// Somebody once told me...
+melody_part_1: {C4:q, G:e, E:e, E:e, D:e, D:e, C:e, C:e, F:q, E:e, E:e, D:e, D:e, C:q}
+melody_part_2: {C4:e, G:e, E:e, E:e, D:e, D:e, C:e, C:e, A3:q, G:5/8}
+
+// Combine the melody sections
+melody: melody_part_1 -> melody_part_2
+
+harmony_start: {_:q}
+harmony_loop: {C3:q, _:e, E:e, F:q, _:q, D:q, _:e, F:e, G:q, _:q}
+
+// Loop the harmony section
+harmony: harmony_start -> harmony_loop -> harmony_loop
+
+
+example:
+
+    // Put the melody though a saw generator and then add a decay
+    |melody -> gen::saw -> melody.start -> melody.end -> gen::decay| ->
+
+    // Put the harmony though a triangle generator and then add a decay
+    |harmony -> gen::triangle -> harmony.start -> harmony.end -> gen::decay| ->
+
+    // Add the two waves with the balance shift a little toward the harmony
+    !1 * 0.6 + !2 * 0.4 ->
+    
+    out
