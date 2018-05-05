@@ -74,11 +74,13 @@ impl Error {
                 println!("Expected duration quantifier, found {}.", found)
             }
             InvalidBackLink(ref found) => println!("Expected number after '!', found {}.", found),
-            InvalidKeyword(ref found) => println!("Keyword is invalid in this context: {}.", found),
+            InvalidKeyword(ref found) => {
+                println!("Keyword is invalid in this context: '{}'.", found)
+            }
             ExpectedNotesProperty(ref found) => {
                 println!("Expected notes property, found {}.", found)
             }
-            InvalidTerm(ref found) => println!("Invalid term: {}.", found),
+            InvalidTerm(ref found) => println!("Invalid term: '{}'.", found),
             CantFindChain(ref chain_name) => {
                 println!("The {} could not be found in this scope.", chain_name)
             }

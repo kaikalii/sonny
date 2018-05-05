@@ -76,7 +76,7 @@ impl Parser {
                 self.builder.tempo = self.real()?;
             }
             // check for "use" keyword
-            if self.look.1 == "use" {
+            else if self.look.1 == "use" {
                 self.mas("use")?;
                 let mut filename = self.look.1.clone();
                 self.mat(Id)?;
@@ -111,9 +111,10 @@ impl Parser {
 
                 // Put back the popped file scope.
                 self.builder.names_in_scope.push(temp_scope);
+            } else {
+                // Declare a chain
+                self.chain_declaration()?;
             }
-            // Declare a chain
-            self.chain_declaration()?;
         }
         // If this is not the top-level parser, finalize the top-level file chain
         if finalize {

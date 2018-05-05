@@ -1,5 +1,5 @@
 [package]
-name = "dal"
+name = "sonny"
 version = "0.1.0"
 authors = ["Kai Schmidt <kaikaliischmidt@gmail.com>"]
 
@@ -8,3 +8,4 @@ hound = "*"
 either = "*"
 colored = "*"
 rayon = "*"
+rustfft = "*"

@@ -2,6 +2,7 @@ extern crate colored;
 extern crate either;
 extern crate hound;
 extern crate rayon;
+extern crate rustfft;
 
 #[macro_use]
 mod lexer;
@@ -21,6 +22,8 @@ fn main() {
     let mut sample_rate = 32000.0;
     let mut window_size = 1000;
     let mut file_name = None;
+    let mut start_time = 0f64;
+    let mut end_time = None;
     // Parse command args for input and flags
     while let Some(ref arg) = args.next() {
         match arg.to_string().as_ref() {
@@ -40,6 +43,22 @@ fn main() {
                     return;
                 }
             },
+            "-s" | "--start" => if let Some(ref s_str) = args.next() {
+                if let Ok(s) = s_str.parse() {
+                    start_time = s;
+                } else {
+                    println!("Invalid start time.");
+                    return;
+                }
+            },
+            "-e" | "--end" => if let Some(ref e_str) = args.next() {
+                if let Ok(e) = e_str.parse() {
+                    end_time = Some(e);
+                } else {
+                    println!("Invalid end_time.");
+                    return;
+                }
+            },
             "-h" | "--help" => {
                 println!(
                     "\n\
@@ -50,7 +69,9 @@ Options:
     -h | --help             Display this message
     -r | --sample_rate      Set the sample rate of the output file
                             in samples/second (default is 32000)
-	-w | --window			Set the size of the processing window
+    -w | --window           Set the size of the processing window
+    -s | --start            Set the start time of the output file
+    -e | --end              Set the end time of the output file
 "
                 );
                 return;
@@ -66,7 +87,7 @@ Options:
                 // make functions
                 Ok(mut builder) => {
                     // output sound
-                    write(builder, sample_rate, window_size);
+                    write(builder, sample_rate, window_size, start_time, end_time);
                 }
                 Err(error) => error.report(),
             },
@@ -77,7 +98,13 @@ Options:
     }
 }
 
-fn write(builder: Builder, sample_rate: f64, window_size: usize) {
+fn write(
+    builder: Builder,
+    sample_rate: f64,
+    window_size: usize,
+    start_time: f64,
+    end_time: Option<f64>,
+) {
     // Find the audio end time
     // TODO: make this get done on a per-outchain basis
     let mut end: f64 = 1.0;
@@ -87,15 +114,21 @@ fn write(builder: Builder, sample_rate: f64, window_size: usize) {
         }
     }
     end = end.max(builder.end_time);
+    if let Some(end_time) = end_time {
+        end = end_time;
+    }
 
     // output each outchain
     for name in builder.chains.iter().filter(|f| f.1.play).map(|f| f.0) {
         // populate the sample array with its own indicies so because par_iter doesn't have enumerate()
-        let mut song = vec![0f64; (sample_rate * end) as usize];
+        let mut song = vec![0f64; (sample_rate * (end - start_time)) as usize];
         // run each sample window as a batch
         let mut time;
         for window_start in (0..(song.len() / window_size)).map(|x| x * window_size) {
-            time = window_start as f64 / sample_rate;
+            time = window_start as f64 / sample_rate + start_time;
+            if time >= end {
+                break;
+            }
             let window_result = builder.evaluate_chain(&name, &[], time, window_size, sample_rate);
             for (i, r) in window_result.into_iter().enumerate() {
                 song[i + window_start] = r.to_f64();
