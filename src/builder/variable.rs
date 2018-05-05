@@ -4,6 +4,7 @@ use std::ops;
 
 // A universal variable type
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum Variable {
     Number(f64),
     Array(Vec<f64>),

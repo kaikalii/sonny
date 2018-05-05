@@ -2,7 +2,11 @@
 
 use std::f64;
 
+use rayon::prelude::*;
+
 use builder::{variable::*, *};
+
+type Variables = Vec<Variable>;
 
 impl ChainLinks {
     // When called on OnlyNotes links, this function returns the note whos period contains
@@ -78,58 +82,78 @@ impl Builder {
         &self,
         operand: &Operand,
         name: &ChainName,
-        args: &[&Variable],
+        args: &[&Variables],
         time: f64,
-    ) -> Variable {
+        window_size: usize,
+        sample_rate: f64,
+    ) -> Variables {
         use Operand::*;
         match *operand {
             // for Nums, simply return the num
-            Var(ref x) => x.clone(),
+            Var(ref x) => vec![x.clone(); window_size],
             // for Ids, call the associated function
-            Id(ref id) => self.evaluate_chain(id, args, time),
+            Id(ref id) => self.evaluate_chain(id, args, time, window_size, sample_rate),
             // for Notes Properties...
             Property(ref id, property) => if let Some(chain) = self.find_chain(id) {
-                // Ensure that this is in fact an OnlyNotes chain.
-                // This check should always succeed because the parser
-                // checks it during the building phase
-                if let ChainLinks::OnlyNotes(..) = chain.links {
-                    // Try to find the note and return it if it is found
-                    if let Some(note) = chain.links.find_note(time, 0.0, &self) {
-                        use builder::Property::*;
-                        match property {
-                            Start => Variable::Number(note.period.start),
-                            End => Variable::Number(note.period.end),
-                            Duration => Variable::Number(note.period.duration()),
+                (0..window_size)
+                    .collect::<Vec<usize>>()
+                    .into_par_iter()
+                    .map(|i| time + i as f64 / sample_rate)
+                    .map(|t| {
+                        // Ensure that this is in fact an OnlyNotes chain.
+                        // This check should always succeed because the parser
+                        // checks it during the building phase
+                        if let ChainLinks::OnlyNotes(..) = chain.links {
+                            // Try to find the note and return it if it is found
+                            if let Some(note) = chain.links.find_note(t, 0.0, &self) {
+                                use builder::Property::*;
+                                match property {
+                                    Start => Variable::Number(note.period.start),
+                                    End => Variable::Number(note.period.end),
+                                    Duration => Variable::Number(note.period.duration()),
+                                }
+                            // return zero if time is after the period of the notes
+                            } else {
+                                Variable::Number(0.0)
+                            }
+                        } else {
+                            panic!("Reference chain is not a note chain");
                         }
-                    // return zero if time is after the period of the notes
-                    } else {
-                        Variable::Number(0.0)
-                    }
-                } else {
-                    panic!("Reference chain is not a note chain");
-                }
+                    })
+                    .collect()
             } else {
                 panic!("Unknown id {:?}", id)
             },
             // For time, simply return the time
-            Time => Variable::Number(time),
+            Time => (0..window_size)
+                .collect::<Vec<usize>>()
+                .into_par_iter()
+                .map(|i| Variable::Number(time + i as f64 / sample_rate))
+                .collect(),
             // For Backlinks, reference the arguments passed
             BackLink(num) => args[num - 1].clone(),
             // It's technically not possible to have notes here, since
             // all notes operands are removed when a chain is finalized.
             // Just make sure. You never know. This might change.
-            Notes(ref notes) => {
-                let mut result = 0.0;
-                for note in notes {
-                    if note.period.contains(time) {
-                        result = note.pitch;
-                        break;
+            Notes(ref notes) => (0..window_size)
+                .collect::<Vec<usize>>()
+                .into_par_iter()
+                .map(|i| time + i as f64 / sample_rate)
+                .map(|t| {
+                    let mut result = 0.0;
+                    for note in notes {
+                        if note.period.contains(t) {
+                            result = note.pitch;
+                            break;
+                        }
                     }
-                }
-                Variable::Number(result)
-            }
+                    Variable::Number(result)
+                })
+                .collect(),
             // Evaluate expressions
-            Expression(ref expression) => self.evaluate_expression(expression, name, args, time),
+            Expression(ref expression) => {
+                self.evaluate_expression(expression, name, args, time, window_size, sample_rate)
+            }
         }
     }
 
@@ -138,82 +162,160 @@ impl Builder {
         &self,
         expression: &Expression,
         name: &ChainName,
-        args: &[&Variable],
+        args: &[&Variables],
         time: f64,
-    ) -> Variable {
+        window_size: usize,
+        sample_rate: f64,
+    ) -> Variables {
         use self::Operation::*;
         let (a, b, c) = expression.0.operands();
-        let x = self.evaluate_operand(a, name, args, time);
-        let y = b.map(|b| self.evaluate_operand(b, name, args, time));
-        let z = c.map(|c| self.evaluate_operand(c, name, args, time));
+        let x = self.evaluate_operand(a, name, args, time, window_size, sample_rate);
+        let y = b.map(|b| self.evaluate_operand(b, name, args, time, window_size, sample_rate));
+        let z = c.map(|c| self.evaluate_operand(c, name, args, time, window_size, sample_rate));
         match expression.0 {
-            Add(..) => x + y.expect("failed to unwrap y in add"),
-            Subtract(..) => x - y.expect("failed to unwrap y in subtract"),
-            Multiply(..) => x * y.expect("failed to unwrap y in multiply"),
-            Divide(..) => x / y.expect("failed to unwrap y in divide"),
-            Remainder(..) => x % y.expect("failed to unwrap y in remainder"),
-            Power(..) => x.pow(y.expect("failed to unwrap y in min")),
-            Min(..) => x.min(y.expect("failed to unwrap y in min")),
-            Max(..) => x.max(y.expect("failed to unwrap y in max")),
-            LessThan(..) => if x < y.expect("failed to unwrap y in compare") {
-                Variable::Number(1.0)
-            } else {
-                Variable::Number(0.0)
-            },
-            GreaterThan(..) => if x > y.expect("failed to unwrap y in compare") {
-                Variable::Number(1.0)
-            } else {
-                Variable::Number(0.0)
-            },
-            LessThanOrEqual(..) => if x <= y.expect("failed to unwrap y in compare") {
-                Variable::Number(1.0)
-            } else {
-                Variable::Number(0.0)
-            },
-            GreaterThanOrEqual(..) => if x >= y.expect("failed to unwrap y in compare") {
-                Variable::Number(1.0)
-            } else {
-                Variable::Number(0.0)
-            },
-            Equal(..) => if x == y.expect("failed to unwrap y in equal") {
-                Variable::Number(1.0)
-            } else {
-                Variable::Number(0.0)
-            },
-            NotEqual(..) => if x != y.expect("failed to unwrap y in not equal") {
-                Variable::Number(1.0)
-            } else {
-                Variable::Number(0.0)
-            },
-            Or(..) => x.max(y.expect("failed to unwrap y in or")),
-            And(..) => x.min(y.expect("failed to unwrap y in or")),
-            Negate(..) => -x,
-            Sine(..) => x.sin(),
-            Cosine(..) => x.cos(),
-            Ceiling(..) => x.ceil(),
-            Floor(..) => x.floor(),
-            AbsoluteValue(..) => x.abs(),
-            Logarithm(..) => x.ln(),
+            Add(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in add").into_par_iter())
+                .map(|(x, y)| x + y)
+                .collect(),
+            Subtract(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in sub").into_par_iter())
+                .map(|(x, y)| x - y)
+                .collect(),
+            Multiply(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in mul").into_par_iter())
+                .map(|(x, y)| x * y)
+                .collect(),
+            Divide(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in div").into_par_iter())
+                .map(|(x, y)| x / y)
+                .collect(),
+            Remainder(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in rem").into_par_iter())
+                .map(|(x, y)| x % y)
+                .collect(),
+            Power(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in pow").into_par_iter())
+                .map(|(x, y)| x.pow(y))
+                .collect(),
+            Min(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in min").into_par_iter())
+                .map(|(x, y)| x.min(y))
+                .collect(),
+            Max(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in max").into_par_iter())
+                .map(|(x, y)| x.max(y))
+                .collect(),
+            LessThan(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in less than").into_par_iter())
+                .map(|(x, y)| {
+                    if x < y {
+                        Variable::Number(1.0)
+                    } else {
+                        Variable::Number(0.0)
+                    }
+                })
+                .collect(),
+            GreaterThan(..) => x.into_par_iter()
+                .zip(
+                    y.expect("failed to unwrap y in greater than")
+                        .into_par_iter(),
+                )
+                .map(|(x, y)| {
+                    if x > y {
+                        Variable::Number(1.0)
+                    } else {
+                        Variable::Number(0.0)
+                    }
+                })
+                .collect(),
+            LessThanOrEqual(..) => x.into_par_iter()
+                .zip(
+                    y.expect("failed to unwrap y in less than or equal")
+                        .into_par_iter(),
+                )
+                .map(|(x, y)| {
+                    if x <= y {
+                        Variable::Number(1.0)
+                    } else {
+                        Variable::Number(0.0)
+                    }
+                })
+                .collect(),
+            GreaterThanOrEqual(..) => x.into_par_iter()
+                .zip(
+                    y.expect("failed to unwrap y in greater than or equal")
+                        .into_par_iter(),
+                )
+                .map(|(x, y)| {
+                    if x >= y {
+                        Variable::Number(1.0)
+                    } else {
+                        Variable::Number(0.0)
+                    }
+                })
+                .collect(),
+            Equal(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in equal").into_par_iter())
+                .map(|(x, y)| {
+                    if x == y {
+                        Variable::Number(1.0)
+                    } else {
+                        Variable::Number(0.0)
+                    }
+                })
+                .collect(),
+            NotEqual(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in not equal").into_par_iter())
+                .map(|(x, y)| {
+                    if x != y {
+                        Variable::Number(1.0)
+                    } else {
+                        Variable::Number(0.0)
+                    }
+                })
+                .collect(),
+            And(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in and").into_par_iter())
+                .map(|(x, y)| x.min(y))
+                .collect(),
+            Or(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in or").into_par_iter())
+                .map(|(x, y)| x.max(y))
+                .collect(),
+            Negate(..) => x.into_par_iter().map(|x| -x).collect(),
+            Sine(..) => x.into_par_iter().map(|x| x.sin()).collect(),
+            Cosine(..) => x.into_par_iter().map(|x| x.cos()).collect(),
+            Ceiling(..) => x.into_par_iter().map(|x| x.ceil()).collect(),
+            Floor(..) => x.into_par_iter().map(|x| x.floor()).collect(),
+            AbsoluteValue(..) => x.into_par_iter().map(|x| x.abs()).collect(),
+            Logarithm(..) => x.into_par_iter().map(|x| x.ln()).collect(),
             Operand(..) => x,
-            Ternary(..) => if x != Variable::Number(0.0) {
-                y.expect("failed to unwrap y in ternay")
-            } else {
-                z.expect("failed to unwrap z in ternay")
-            },
+            Ternary(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in ternay").into_par_iter())
+                .zip(z.expect("failed to unwrap z in ternay").into_par_iter())
+                .map(|((x, y), z)| if x != Variable::Number(0.0) { y } else { z })
+                .collect(),
         }
     }
 
     // Evaluate a chain
-    pub fn evaluate_chain(&self, name: &ChainName, args: &[&Variable], time: f64) -> Variable {
+    pub fn evaluate_chain(
+        &self,
+        name: &ChainName,
+        args: &[&Variables],
+        time: f64,
+        window_size: usize,
+        sample_rate: f64,
+    ) -> Variables {
         if let Some(chain) = self.find_chain(name) {
             match chain.links {
                 ChainLinks::Generic(ref expressions) => {
-                    let mut results: Vec<Variable> = Vec::new();
+                    let mut results: Vec<Variables> = Vec::new();
                     for (_i, expression) in expressions.iter().enumerate() {
-                        let mut results_collector: Vec<Variable> = Vec::new();
+                        let mut results_collector: Vec<Variables> = Vec::new();
                         {
                             // Create the args to be passed to the evaluate_expression() call
-                            let mut these_args: Vec<&Variable> = Vec::new();
+                            let mut these_args: Vec<&Variables> = Vec::new();
                             // Add all previous arg results of this chain reversed
                             these_args.extend(results.iter().rev());
                             // Add the args coming into this chain
@@ -224,6 +326,8 @@ impl Builder {
                                 name,
                                 &these_args,
                                 time,
+                                window_size,
+                                sample_rate,
                             ));
                         }
                         results.extend(results_collector.into_iter());
@@ -233,13 +337,20 @@ impl Builder {
                         .last()
                         .expect("generic chain gave no last result")
                 }
-                ChainLinks::OnlyNotes(..) => Variable::Number(
-                    chain
-                        .links
-                        .find_note(time, 0.0, &self)
-                        .map(|n| n.pitch)
-                        .unwrap_or(0.0),
-                ),
+                ChainLinks::OnlyNotes(..) => (0..window_size)
+                    .collect::<Vec<usize>>()
+                    .into_par_iter()
+                    .map(|i| time + i as f64 / sample_rate)
+                    .map(|t| {
+                        Variable::Number(
+                            chain
+                                .links
+                                .find_note(t, 0.0, &self)
+                                .map(|n| n.pitch)
+                                .unwrap_or(0.0),
+                        )
+                    })
+                    .collect(),
             }
         } else {
             panic!("No function named '{}'", name);

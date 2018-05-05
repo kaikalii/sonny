@@ -12,8 +12,6 @@ mod parser;
 use std::env;
 use std::{f64, i16};
 
-use rayon::prelude::*;
-
 use builder::*;
 use parser::*;
 
@@ -21,7 +19,7 @@ fn main() {
     let mut args = env::args();
     args.next();
     let mut sample_rate = 32000.0;
-    let mut window_size = 100;
+    let mut window_size = 1000;
     let mut file_name = None;
     // Parse command args for input and flags
     while let Some(ref arg) = args.next() {
@@ -93,18 +91,15 @@ fn write(builder: Builder, sample_rate: f64, window_size: usize) {
     // output each outchain
     for name in builder.chains.iter().filter(|f| f.1.play).map(|f| f.0) {
         // populate the sample array with its own indicies so because par_iter doesn't have enumerate()
-        let mut song = vec![(0f64, 0usize); (sample_rate * end) as usize];
-        for (i, (_, ref mut x)) in song.iter_mut().enumerate() {
-            *x = i;
-        }
+        let mut song = vec![0f64; (sample_rate * end) as usize];
         // run each sample window as a batch
+        let mut time;
         for window_start in (0..(song.len() / window_size)).map(|x| x * window_size) {
-            song[window_start..(window_start + window_size)]
-                .par_iter_mut()
-                .for_each(|(sample, i)| {
-                    let time = *i as f64 / sample_rate;
-                    *sample = builder.evaluate_chain(&name, &[], time).to_f64();
-                });
+            time = window_start as f64 / sample_rate;
+            let window_result = builder.evaluate_chain(&name, &[], time, window_size, sample_rate);
+            for (i, r) in window_result.into_iter().enumerate() {
+                song[i + window_start] = r.to_f64();
+            }
         }
 
         // Write the audio file
@@ -126,7 +121,7 @@ fn write(builder: Builder, sample_rate: f64, window_size: usize) {
             spec,
         ).unwrap();
         let amplitude = i16::MAX as f64;
-        for (s, _) in song {
+        for s in song {
             writer
                 .write_sample((s * amplitude).min(amplitude) as i16)
                 .unwrap();
