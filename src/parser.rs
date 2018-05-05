@@ -75,9 +75,9 @@ impl Parser {
                 self.mas(":")?;
                 self.builder.tempo = self.real()?;
             }
-            // check for "use" keyword
-            else if self.look.1 == "use" {
-                self.mas("use")?;
+            // check for "include" keyword
+            else if self.look.1 == "include" {
+                self.mas("include")?;
                 let mut filename = self.look.1.clone();
                 self.mat(Id)?;
                 if self.look.1 == "." {
@@ -111,6 +111,40 @@ impl Parser {
 
                 // Put back the popped file scope.
                 self.builder.names_in_scope.push(temp_scope);
+            }
+            // check for "use" keyword
+            else if self.look.1 == "use" {
+                self.mas("use")?;
+                let mut name = self.look.1.clone();
+                self.mat(Id)?;
+                let mut broke = false;
+                while self.look.1 == "::" {
+                    self.mas("::")?;
+                    if self.look.0 == Id {
+                        name.push_str(&format!("::{}", self.look.1));
+                        self.mat(Id)?;
+                    } else if self.look.1 == "*" {
+                        self.mas("*")?;
+                        self.builder.names_in_scope.insert(
+                            0,
+                            NameInScope {
+                                name: name.clone(),
+                                contents: true,
+                            },
+                        );
+                        broke = true;
+                        break;
+                    }
+                }
+                if !broke {
+                    self.builder.names_in_scope.insert(
+                        0,
+                        NameInScope {
+                            name,
+                            contents: false,
+                        },
+                    );
+                }
             } else {
                 // Declare a chain
                 self.chain_declaration()?;

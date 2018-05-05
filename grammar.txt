@@ -1,3 +1,8 @@
+
+This grammar is not quite complete. There are some keywords missing, and a few things might not be coded exactly to match what is listed here.
+TODO: Clean up the grammar and make it a clearer mormat.
+
+
 digit -> [0,9]
 
 letter -> [a,z] | [A,Z]

@@ -346,12 +346,18 @@ impl Builder {
                     Some(chain)
                 } else {
                     for name_in_scope in &self.names_in_scope {
+                        // Check if the name is valid when appended to a name in scope
+                        // which is marked to use its contents, e.g. "use gen::*" allows
+                        // the user to call "gen::sine" by simply writing "sine".
                         if name_in_scope.contents {
                             let test_name = format!("{}::{}", name_in_scope.name, name_str);
                             if let Some(ref chain) = self.chains.get(&ChainName::Scoped(test_name))
                             {
                                 return Some(chain);
                             }
+                        // Check if the name is valid if a name in scope ends with it,
+                        // e.g. "use gen::sine" allows the user to call "gen::sine" by
+                        // simply writing "sine".
                         } else {
                             if &name_in_scope.name.split("::").last().unwrap() == name_str {
                                 return self.chains
