@@ -22,6 +22,7 @@ pub enum ErrorSpec {
     PropertyOfGenericChain(ChainName, String),
     NamedChainInAnonChain(String),
     ChainRedeclaration(ChainName),
+    CantOpenOutputFile,
 }
 
 #[derive(Debug, Clone)]
@@ -95,6 +96,9 @@ impl Error {
                 chain_name
             ),
             ChainRedeclaration(ref chain_name) => println!("Redeclaration of {}.", chain_name),
+            CantOpenOutputFile => println!(
+                "Unable to open output file.\nMake sure you have a default WAV player set."
+            ),
         }
     }
 }

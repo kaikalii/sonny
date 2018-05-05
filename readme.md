@@ -46,6 +46,12 @@ The does not need to, and probably should not...
 
 # Installation
 
+#### Requirements
+
+* Git (recommended)
+* Rust
+* Cargo
+
 The *Sonny* compiler is written in the Rust programming language. Currently, the main way to install *Sonny* is to build it from source. Luckily, Rust makes this very easy. Before you can install *Sonny* you will need to install Rust and its package manager, cargo.
 
 If you do not already have *Rust* installed, head over to [the *Rust* website](https://www.rust-lang.org/) and install it. Once cargo is installed, simply run these commands in your terminal:
@@ -56,8 +62,9 @@ cargo build
 ```
 Then, you can run the example:
 ```
-sonny example.son --play
+cargo run example.son --play
 ```
+After this, you can `cargo build --release` and add /PATH/TO/sonny/target/release to your path if you want to be able to compile *Sonny* projects from any directory.
 
 # Tutorial
 

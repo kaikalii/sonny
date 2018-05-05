@@ -1,6 +1,7 @@
 extern crate colored;
 extern crate either;
 extern crate hound;
+extern crate open;
 extern crate rayon;
 extern crate rustfft;
 
@@ -10,10 +11,10 @@ mod builder;
 mod error;
 mod parser;
 
-use std::env;
-use std::{f64, i16};
+use std::{env, f64, i16};
 
 use builder::*;
+use error::*;
 use parser::*;
 
 fn main() {
@@ -24,6 +25,7 @@ fn main() {
     let mut file_name = None;
     let mut start_time = 0f64;
     let mut end_time = None;
+    let mut play = false;
     // Parse command args for input and flags
     while let Some(ref arg) = args.next() {
         match arg.to_string().as_ref() {
@@ -59,6 +61,7 @@ fn main() {
                     return;
                 }
             },
+            "-p" | "--play" => play = true,
             "-h" | "--help" => {
                 println!(
                     "\n\
@@ -88,7 +91,16 @@ Options:
                 // make functions
                 Ok(mut builder) => {
                     // output sound
-                    write(builder, sample_rate, window_size, start_time, end_time);
+                    if let Err(error) = write(
+                        builder,
+                        sample_rate,
+                        window_size,
+                        start_time,
+                        end_time,
+                        play,
+                    ) {
+                        error.report();
+                    }
                 }
                 Err(error) => error.report(),
             },
@@ -105,7 +117,8 @@ fn write(
     window_size: usize,
     start_time: f64,
     end_time: Option<f64>,
-) {
+    play: bool,
+) -> SonnyResult<()> {
     // Find the audio end time
     // TODO: make this get done on a per-outchain basis
     let mut end: f64 = 1.0;
@@ -137,28 +150,36 @@ fn write(
         }
 
         // Write the audio file
-        let spec = hound::WavSpec {
-            channels: 1,
-            sample_rate: sample_rate as u32,
-            bits_per_sample: 16,
-            sample_format: hound::SampleFormat::Int,
-        };
-        let mut writer = hound::WavWriter::create(
-            &format!(
+        let filename;
+        {
+            let spec = hound::WavSpec {
+                channels: 1,
+                sample_rate: sample_rate as u32,
+                bits_per_sample: 16,
+                sample_format: hound::SampleFormat::Int,
+            };
+            filename = format!(
                 "{}.wav",
                 if let ChainName::Scoped(chain_name) = name {
                     chain_name.split("::").last().unwrap().to_string()
                 } else {
                     name.to_string()
                 }
-            ),
-            spec,
-        ).unwrap();
-        let amplitude = i16::MAX as f64;
-        for s in song {
-            writer
-                .write_sample((s * amplitude).min(amplitude) as i16)
-                .unwrap();
+            );
+            let mut writer = hound::WavWriter::create(&filename, spec).unwrap();
+            let amplitude = i16::MAX as f64;
+            for s in song {
+                writer
+                    .write_sample((s * amplitude).min(amplitude) as i16)
+                    .unwrap();
+            }
+        }
+
+        if play {
+            if open::that(&filename).is_err() {
+                return Err(Error::new(ErrorSpec::CantOpenOutputFile));
+            }
         }
     }
+    Ok(())
 }
