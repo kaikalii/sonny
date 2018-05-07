@@ -60,6 +60,8 @@ pub enum Operation {
     Logarithm(Operand),
     Operand(Operand),
     Ternary(Operand, Operand, Operand),
+    Index(Operand, Operand),
+    SubArray(Operand, Operand, Operand),
 }
 
 impl Operation {
@@ -82,10 +84,11 @@ impl Operation {
             | Equal(ref a, ref b)
             | NotEqual(ref a, ref b)
             | Or(ref a, ref b)
-            | And(ref a, ref b) => (a, Some(b), None),
+            | And(ref a, ref b)
+            | Index(ref a, ref b) => (a, Some(b), None),
             Negate(ref a) | Sine(ref a) | Cosine(ref a) | Ceiling(ref a) | Floor(ref a)
             | AbsoluteValue(ref a) | Logarithm(ref a) | Operand(ref a) => (a, None, None),
-            Ternary(ref a, ref b, ref c) => (a, Some(b), Some(c)),
+            Ternary(ref a, ref b, ref c) | SubArray(ref a, ref b, ref c) => (a, Some(b), Some(c)),
         }
     }
 }

@@ -11,11 +11,11 @@ pub enum Variable {
 }
 
 impl Variable {
-    pub fn to_f64(self) -> f64 {
+    pub fn to_f64(&self) -> f64 {
         use self::Variable::*;
-        match self {
-            Number(x) => x,
-            Array(x) => x.into_iter().next().expect("Array is empty"),
+        match *self {
+            Number(ref x) => *x,
+            Array(ref x) => x.into_iter().next().cloned().unwrap_or(0.0),
         }
     }
 }
@@ -239,6 +239,32 @@ impl Variable {
         match *self {
             Number(x) => Number(x.abs()),
             Array(ref x) => Array(x.iter().map(|x| x.abs()).collect()),
+        }
+    }
+    pub fn sub_array(&self, start: &Variable, end: &Variable) -> Variable {
+        use self::Variable::*;
+        match *self {
+            Number(..) => self.clone(),
+            Array(ref x) => Array(
+                x.iter()
+                    .skip(start.to_f64() as usize)
+                    .take((end.clone() - start.clone()).to_f64() as usize)
+                    .cloned()
+                    .collect(),
+            ),
+        }
+    }
+    pub fn index(&self, index: &Variable) -> Variable {
+        use self::Variable::*;
+        match *self {
+            Number(..) => self.clone(),
+            Array(ref x) => Number(
+                x.iter()
+                    .skip(index.to_f64() as usize)
+                    .next()
+                    .cloned()
+                    .unwrap_or(0.0),
+            ),
         }
     }
 }

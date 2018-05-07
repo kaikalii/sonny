@@ -299,6 +299,18 @@ impl Builder {
                 .zip(z.expect("failed to unwrap z in ternay").into_par_iter())
                 .map(|((x, y), z)| if x != Variable::Number(0.0) { y } else { z })
                 .collect(),
+            Index(..) => x.into_par_iter()
+                .zip(y.expect("failed to unwrap y in index").into_par_iter())
+                .map(|(x, y)| x.index(&y))
+                .collect(),
+            SubArray(..) => x.into_par_iter()
+                .zip(
+                    y.expect("failed to unwrap y in sub_array")
+                        .into_par_iter()
+                        .zip(z.expect("failed to unwrap z in sub_array").into_par_iter()),
+                )
+                .map(|(x, (y, z))| x.sub_array(&y, &z))
+                .collect(),
         }
     }
 
