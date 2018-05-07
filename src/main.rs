@@ -133,7 +133,7 @@ fn write(
     }
 
     // output each outchain
-    for name in builder.chains.iter().filter(|f| f.1.play).map(|f| f.0) {
+    if let Some(name) = builder.chains.iter().find(|f| f.1.play).map(|f| f.0) {
         // populate the sample array with its own indicies so because par_iter doesn't have enumerate()
         let mut song = vec![0f64; (sample_rate * (end - start_time)) as usize];
         // run each sample window as a batch

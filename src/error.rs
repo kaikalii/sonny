@@ -23,6 +23,7 @@ pub enum ErrorSpec {
     NamedChainInAnonChain(String),
     ChainRedeclaration(ChainName),
     CantOpenOutputFile,
+    MultipleOutChains(CodeLocation),
 }
 
 #[derive(Debug, Clone)]
@@ -98,6 +99,10 @@ impl Error {
             ChainRedeclaration(ref chain_name) => println!("Redeclaration of {}.", chain_name),
             CantOpenOutputFile => println!(
                 "Unable to open output file.\nMake sure you have a default WAV player set."
+            ),
+            MultipleOutChains(ref loc) => println!(
+                "Multiple output chains.\nFirst output declared on line {}.",
+                loc
             ),
         }
     }

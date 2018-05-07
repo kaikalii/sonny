@@ -211,6 +211,8 @@ pub struct Builder {
     // The time at which the audio is set to stop. Will be overridden
     // by any notes which are longer
     pub end_time: f64,
+    // The optional line on which the out chain was declared
+    pub out_declared: Option<CodeLocation>,
 }
 
 impl Builder {
@@ -224,6 +226,7 @@ impl Builder {
             anon_chain_depth: 0,
             tempo: 120.0,
             end_time: 1.0,
+            out_declared: None,
         }
     }
     // Initializes a new chain

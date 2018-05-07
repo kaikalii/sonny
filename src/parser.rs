@@ -770,11 +770,19 @@ impl Parser {
         while self.look.1 == "->" {
             self.mas("->")?;
             if self.look.1 == "out" {
-                self.builder.play_chain();
-                self.mas("out")?;
-                if self.look.1 == ":" {
-                    self.mas(":")?;
-                    self.builder.end_time = self.real()?;
+                if self.builder.out_declared.is_none() {
+                    self.builder.play_chain();
+                    self.builder.out_declared = Some(self.lexer.loc());
+                    self.mas("out")?;
+                    if self.look.1 == ":" {
+                        self.mas(":")?;
+                        self.builder.end_time = self.real()?;
+                    }
+                    break;
+                } else {
+                    return Err(Error::new(MultipleOutChains(
+                        self.builder.out_declared.clone().unwrap(),
+                    )).on_line(self.lexer.loc()));
                 }
             } else {
                 self.link()?;

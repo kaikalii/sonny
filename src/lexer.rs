@@ -315,6 +315,8 @@ impl Lexer {
                                 '/' => {
                                     while let Some(c) = self.get_char() {
                                         if c == '\n' {
+                                            self.loc.line += 1;
+                                            self.loc.column = 0;
                                             break;
                                         }
                                     }
