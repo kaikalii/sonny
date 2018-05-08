@@ -26,6 +26,7 @@ static KEYWORDS: &[&'static str] = &[
     "ts",
     "tempo",
     "include",
+    "std",
     "use",
     "window_size",
     "sample_rate",

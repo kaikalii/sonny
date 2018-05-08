@@ -1,5 +1,6 @@
 extern crate colored;
 extern crate either;
+extern crate find_folder;
 extern crate hound;
 extern crate open;
 extern crate rayon;
@@ -76,6 +77,8 @@ Options:
                             (default it )
     -s | --start            Set the start time of the output file
     -e | --end              Set the end time of the output file
+    -p | --play             Plays the output file after it is
+                            finished generating.
 "
                 );
                 return;

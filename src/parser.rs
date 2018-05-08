@@ -1,7 +1,10 @@
+use std::env;
 use std::f64;
 use std::path::PathBuf;
 
 use either::*;
+
+use find_folder::{Search, SearchFolder};
 
 use builder::{variable::*, *};
 use error::{ErrorSpec::*, *};
@@ -55,18 +58,24 @@ impl Parser {
     // Parse the whole file and return the builder so that it can be
     // used by higher-level parsers or the write function itself.
     pub fn parse(mut self, finalize: bool) -> SonnyResult<Builder> {
+        // Determine the name of this file's top-level chain
+        let top_chain_name = PathBuf::from(self.lexer.loc().file)
+            .file_stem()
+            .expect("Unable to get file stem from file path")
+            .to_str()
+            .expect("Unable to convert file steam to &str")
+            .to_string();
+        // If this chain name already exists, then this is a file that
+        // has already been included. Return the builder.
+        if self.builder
+            .find_chain(&ChainName::Scoped(top_chain_name.clone()))
+            .is_some()
+        {
+            return Ok(self.builder);
+        }
         // Create this file's top-level chain
-        self.builder.new_chain(
-            Some(
-                self.lexer
-                    .loc()
-                    .file
-                    .chars()
-                    .take_while(|&c| (c.is_alphanumeric() || c == '_') && c != '.')
-                    .collect::<String>(),
-            ),
-            self.lexer.loc(),
-        )?;
+        self.builder
+            .new_chain(Some(top_chain_name), self.lexer.loc())?;
         // While in this file
         while self.look.0 != Done {
             // Check for tempo setting
@@ -76,34 +85,49 @@ impl Parser {
                 self.builder.tempo = self.real()?;
             }
             // check for "include" keyword
-            else if self.look.1 == "include" {
-                self.mas("include")?;
+            else if self.look.1 == "std" || self.look.1 == "include" {
+                let standard = self.look.1 == "std";
+                if standard {
+                    self.mas("std")?;
+                } else {
+                    self.mas("include")?;
+                }
                 let mut filename = self.look.1.clone();
                 self.mat(Id)?;
                 while self.look.1 == "::" {
                     self.mas("::")?;
-                    filename.push_str(&format!("/{}", self.look.1));
+                    filename.push_str("/");
+                    filename.push_str(&self.look.1);
+                    self.mat(Id)?;
                 }
-                if self.look.1 == "." {
-                    self.mas(".")?;
-                    if self.look.0 == Id {
-                        filename.push('.');
-                        filename.push_str(&self.look.1);
-                        self.mat(Id)?;
-                    }
-                } else {
-                    filename.push_str(".son");
-                }
+                filename.push_str(".son");
                 // Temporarily pop off this file's scope
                 let temp_scope = self.builder
                     .names_in_scope
                     .pop()
                     .expect("no chains in scope");
 
-                let path = PathBuf::from(format!("./{}", self.main_file_name))
-                    // .canonicalize()
-                    // .expect("can't canonicalize main file name")
-                    .with_file_name(filename.clone());
+                // Create the new file path
+                let path = if standard {
+                    SearchFolder {
+                        start: PathBuf::from(
+                            env::current_exe()
+                                .expect("Unable to determine sonny executable path")
+                                .parent()
+                                .expect("Unable to get sonny executable parent"),
+                        ),
+                        direction: Search::ParentsThenKids(3, 3),
+                    }.for_folder("std")
+                        .expect("Unable to find standard library folder")
+                        .join(filename)
+                } else {
+                    PathBuf::from(&self.main_file_name)
+                        .canonicalize()
+                        .expect("can't canonicalize main file name")
+                        .parent()
+                        .expect("Unable to get main file parent")
+                        .join(filename.clone())
+                };
 
                 // Create a new parser for the file. Give it this parser's builder.
                 // It's okay. It will get the builder back when the other parser

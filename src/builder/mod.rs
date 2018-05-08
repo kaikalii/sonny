@@ -333,6 +333,7 @@ impl Builder {
             self.names_in_scope.pop();
         }
         // Insert the chain
+        println!("finalized {}", chain.name);
         self.chains.insert(chain.name.clone(), chain);
     }
     // Finds a chain with the given name. In the chains map, chains are named

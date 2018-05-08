@@ -1,4 +1,4 @@
-include std::gen
+std gen
 
 // Somebody once told me...
 melody_part_1: {C4:q, G:e, E:e, E:e, D:e, D:e, C:e, C:e, F:q, E:e, E:e, D:e, D:e, C:q}
@@ -24,5 +24,5 @@ example:
 
     // Add the two waves with the balance shift a little toward the harmony
     !1 * 0.6 + !2 * 0.4 ->
-    
+
     out
