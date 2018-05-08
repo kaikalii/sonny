@@ -424,8 +424,26 @@ impl Parser {
         self.mat(Num)?;
         Ok(op)
     }
-    // Match an expression term
-    fn term(&mut self) -> SonnyResult<Operand> {
+    // Match an indexer
+    fn indexer(&mut self) -> SonnyResult<(Option<Expression>, Option<Expression>)> {
+        if self.look.1 == "[" {
+            self.mas("[")?;
+            let start_expr = self.expression()?;
+            if self.look.1 == ".." {
+                self.mas("..")?;
+                let end_expr = self.expression()?;
+                self.mas("]")?;
+                Ok((Some(start_expr), Some(end_expr)))
+            } else {
+                self.mas("]")?;
+                Ok((Some(start_expr), None))
+            }
+        } else {
+            Ok((None, None))
+        }
+    }
+    // Match an expression term identifier
+    fn term_identifier(&mut self) -> SonnyResult<Operand> {
         match self.look.0 {
             Num => Ok(Operand::Var(Variable::Number(self.real()?))),
             Keyword => {
@@ -510,6 +528,27 @@ impl Parser {
             _ => return Err(Error::new(InvalidTerm(self.look.clone())).on_line(self.lexer.loc())),
         }
     }
+    // Match an expression term
+    fn term(&mut self) -> SonnyResult<Expression> {
+        let ident = self.term_identifier()?;
+        let index = self.indexer()?;
+        if let Some(start) = index.0 {
+            if let Some(end) = index.1 {
+                Ok(Expression(Operation::SubArray(
+                    ident,
+                    Operand::Expression(Box::new(start)),
+                    Operand::Expression(Box::new(end)),
+                )))
+            } else {
+                Ok(Expression(Operation::Index(
+                    ident,
+                    Operand::Expression(Box::new(start)),
+                )))
+            }
+        } else {
+            Ok(Expression(Operation::Operand(ident)))
+        }
+    }
     // Match a unary expression
     fn exp_un(&mut self) -> SonnyResult<Expression> {
         Ok(if &self.look.1 == "-" {
@@ -543,7 +582,7 @@ impl Parser {
                 self.exp_un()?,
             ))))
         } else {
-            Expression(Operation::Operand(self.term()?))
+            self.term()?
         })
     }
     // Match a min/max expression
@@ -755,11 +794,19 @@ impl Parser {
         while self.look.1 == "->" {
             self.mas("->")?;
             if self.look.1 == "out" {
-                self.builder.play_chain();
-                self.mas("out")?;
-                if self.look.1 == ":" {
-                    self.mas(":")?;
-                    self.builder.end_time = self.real()?;
+                if self.builder.out_declared.is_none() {
+                    self.builder.play_chain();
+                    self.builder.out_declared = Some(self.lexer.loc());
+                    self.mas("out")?;
+                    if self.look.1 == ":" {
+                        self.mas(":")?;
+                        self.builder.end_time = self.real()?;
+                    }
+                    break;
+                } else {
+                    return Err(Error::new(MultipleOutChains(
+                        self.builder.out_declared.clone().unwrap(),
+                    )).on_line(self.lexer.loc()));
                 }
             } else {
                 self.link()?;

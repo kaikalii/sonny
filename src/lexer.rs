@@ -290,7 +290,15 @@ impl Lexer {
                             return Token(Operator, token);
                         }
                     },
-                    '.' => return Token(Dot, token),
+                    '.' => if let Some(c) = self.get_char() {
+                        if c == '.' {
+                            token.push(c);
+                            return Token(Dot, token);
+                        } else {
+                            self.put_back();
+                            return Token(Dot, token);
+                        }
+                    },
                     '_' => return Token(Rest, token),
                     '+' | '*' | '%' | '^' | '?' => return Token(Operator, token),
                     '-' => if let Some(c) = self.get_char() {
@@ -308,6 +316,8 @@ impl Lexer {
                                 '/' => {
                                     while let Some(c) = self.get_char() {
                                         if c == '\n' {
+                                            self.loc.line += 1;
+                                            self.loc.column = 0;
                                             break;
                                         }
                                     }

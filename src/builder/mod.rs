@@ -60,6 +60,8 @@ pub enum Operation {
     Logarithm(Operand),
     Operand(Operand),
     Ternary(Operand, Operand, Operand),
+    Index(Operand, Operand),
+    SubArray(Operand, Operand, Operand),
 }
 
 impl Operation {
@@ -82,10 +84,11 @@ impl Operation {
             | Equal(ref a, ref b)
             | NotEqual(ref a, ref b)
             | Or(ref a, ref b)
-            | And(ref a, ref b) => (a, Some(b), None),
+            | And(ref a, ref b)
+            | Index(ref a, ref b) => (a, Some(b), None),
             Negate(ref a) | Sine(ref a) | Cosine(ref a) | Ceiling(ref a) | Floor(ref a)
             | AbsoluteValue(ref a) | Logarithm(ref a) | Operand(ref a) => (a, None, None),
-            Ternary(ref a, ref b, ref c) => (a, Some(b), Some(c)),
+            Ternary(ref a, ref b, ref c) | SubArray(ref a, ref b, ref c) => (a, Some(b), Some(c)),
         }
     }
 }
@@ -208,6 +211,8 @@ pub struct Builder {
     // The time at which the audio is set to stop. Will be overridden
     // by any notes which are longer
     pub end_time: f64,
+    // The optional line on which the out chain was declared
+    pub out_declared: Option<CodeLocation>,
 }
 
 impl Builder {
@@ -221,6 +226,7 @@ impl Builder {
             anon_chain_depth: 0,
             tempo: 120.0,
             end_time: 1.0,
+            out_declared: None,
         }
     }
     // Initializes a new chain
