@@ -122,8 +122,6 @@ impl Parser {
                         .join(filename)
                 } else {
                     PathBuf::from(&self.main_file_name)
-                        .canonicalize()
-                        .expect("can't canonicalize main file name")
                         .parent()
                         .expect("Unable to get main file parent")
                         .join(filename.clone())
