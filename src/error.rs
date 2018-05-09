@@ -20,6 +20,7 @@ pub enum ErrorSpec {
     UnexpectedEndOfFile,
     ZeroBacklink,
     PropertyOfGenericChain(ChainName, String),
+    DurationOfGenericChain(ChainName),
     NamedChainInAnonChain(String),
     ChainRedeclaration(ChainName),
     CantOpenOutputFile,
@@ -91,6 +92,10 @@ impl Error {
             PropertyOfGenericChain(ref chain_name, ref property_name) => println!(
                 "The {} contains expressions, so the property '{}' cannot be taken from it.",
                 chain_name, property_name
+            ),
+            DurationOfGenericChain(ref chain_name) => println!(
+                "The {} contains expressions, so it cannot be used to define a note duration",
+                chain_name
             ),
             NamedChainInAnonChain(ref chain_name) => println!(
                 "A named chain: '{}' cannot be declared inside an anonymous chain.",

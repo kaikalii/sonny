@@ -14,4 +14,4 @@ triangle: 2 * (abs saw - 0.5)
 # Takes a wave generated from notes, the start property
 # of the notes, and the end property of the notes.
 # Linearly decays each note's volume over its duration.
-decay: !3 * (1 - (time - !2) / (!1 - !2 + 0.0001))
+decay: !3 * (1 - (time - !2) / (!1 - !2 + 0.0001)) max 0

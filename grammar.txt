@@ -42,6 +42,7 @@ duration -> num / num
 	| easy_duration
 
 note -> pitch : duration
+	| pitch : id
 
 notes -> note , notes
 	| \0
