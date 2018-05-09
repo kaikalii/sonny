@@ -69,7 +69,7 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li><a href="basics/intro.html"><strong aria-hidden="true">1.</strong> Basics</a></li><li><ol class="section"><li><a href="basics/generating_a_tone.html"><strong aria-hidden="true">1.1.</strong> Generating A Tone</a></li><li><a href="basics/notes.html"><strong aria-hidden="true">1.2.</strong> Notes</a></li></ol></li></ol>
+            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li><a href="basics/intro.html"><strong aria-hidden="true">1.</strong> Basics</a></li><li><ol class="section"><li><a href="basics/generating_a_tone.html"><strong aria-hidden="true">1.1.</strong> Generating A Tone</a></li><li><a href="basics/notes.html"><strong aria-hidden="true">1.2.</strong> Notes</a></li><li><a href="basics/comments.html"><strong aria-hidden="true">1.3.</strong> Comment</a></li></ol></li></ol>
         </nav>
 
         <div id="page-wrapper" class="page-wrapper">
@@ -227,6 +227,20 @@ tempo: 112
 output:
     { Eb4:q., Bb3:e, Eb4:q., Bb3:e, Eb4:e, Bb3:e, Eb4:e, G:e, Bb:h } -&gt;
     gen::sin -&gt; out
+</code></pre>
+<a class="header" href="print.html#comments" id="comments"><h1>Comments</h1></a>
+<p>Comments in Sonny are useful for documenting your code.</p>
+<p>Single line comments are marked with a <code>#</code>. They end when the line ends.</p>
+<pre><code># This is a single line comment.
+</code></pre>
+<p>If you would like comments to be span multiple lines, or if you want a comment to end and then some code to begin on the same line, you must begin the comment with <code>#/</code> and end it with <code>/#</code>.</p>
+<pre><code>#/
+This is a
+multiline
+comment.
+/#
+
+#/ The code after this comment will still be interpreted. /# std gen
 </code></pre>
 
                     </main>
