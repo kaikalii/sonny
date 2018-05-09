@@ -1,0 +1,235 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Sonny Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <base href="">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="_FontAwesome/css/font-awesome.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+
+    </head>
+    <body class="light">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li><a href="basics/basics.html"><strong aria-hidden="true">1.</strong> Basics</a></li><li><ol class="section"><li><a href="basics/generating_a_tone.html"><strong aria-hidden="true">1.1.</strong> Generating A Tone</a></li></ol></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light <span class="default">(default)</span></button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">Sonny Documentation</h1> 
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="print.html#what-is-sonny" id="what-is-sonny"><h2>What is Sonny?</h2></a>
+<p>Sonny is a functional programming language designed for generating and transforming sound. It gives the user the tools to manipulate sound waves in any way they want. What you can accomplish is Sonny is limited only by your imagination (and your grasp of algebra).</p>
+<p>This tutorial will teach you the ins and outs of programming in Sonny. If you do not yet have Sonny installed, you can read the <a href="https://github.com/kaikalii/sonny">installation section of the main repo's readme</a>. It is <em>highly recommended</em> that you add the Sonny executable path to your system path so that you can run it from any directory.</p>
+<p>Once you have Sonny installed, you can start with <a href="https://github.com/kaikalii/sonny/wiki/Generating-A-Tone">generating a tone</a>.</p>
+<a class="header" href="print.html#sonny-basics" id="sonny-basics"><h1>Sonny Basics</h1></a>
+<p>This chapter will teach you the basics of programming in Sonny.</p>
+<a class="header" href="print.html#generating-a-tone" id="generating-a-tone"><h1>Generating A Tone</h1></a>
+<p>The most basic interesting thing you can do in Sonny is generate a tone.</p>
+<p>To generate a tone, we have to specify two of its attributes: its <strong>frequency</strong> and its <strong>waveform</strong>.</p>
+<p>To get started, open up a blank document and name it <code>tutorial.son</code>.</p>
+<p>Sonny gives you the tools to make your own wave generators, but for now, we will use one of the ones included with the standard library. At the top of your file, add:</p>
+<pre><code>std gen
+</code></pre>
+<p>The <code>std</code> keyword tells Sonny to use a standard library file. <code>gen</code> is the name of the standard wave generator library.</p>
+<p>Now for the frequency. For this example, we will generate an A4 note, which is 440 Hz. In Sonny, you can denote frequencies by either the number of hertz or the note name. A couple lines down, add either <code>A4</code> or <code>440</code>.</p>
+<pre><code>std gen
+
+A4
+</code></pre>
+<p>We have the tone's frequency, now we need to give it a waveform. Let's use the standard library's sine wave generator.</p>
+<pre><code>std gen
+
+A4 -&gt; gen::sine
+</code></pre>
+<p>The <code>-&gt;</code> operator denotes that we are passing the A4 to the sine generator so that it knows what frequency to use.</p>
+<p>We are almost done. All that is left to do is tell Sonny that we want it to play the tone. We do that by add another <code>-&gt;</code> and the word <code>out</code>.</p>
+<pre><code>std gen
+
+A4 -&gt; gen::sine -&gt; out
+</code></pre>
+<p>That's it! Save your file, and from the terminal, navigate to its folder. Run the command:</p>
+<pre><code>sonny tutorial.son --play
+</code></pre>
+<p>After a brief moment, you computer's default audio player should pop up and play the tone for one second. Make sure your sound is on, or you might miss it.</p>
+<p>You may have noticed that the sound file is called <code>anonXXXX.wav</code>. This is because we did not name our line with the tone. Go back to your <code>tutorial.son</code> file and add a name.</p>
+<pre><code>std gen
+
+output: A4 -&gt; gen::sine -&gt; out
+</code></pre>
+<p>The tone only played for one second because that is the default time that Sonny uses if it does not know how long an audio file should be. To increase this time, add a number after the <code>out</code>.</p>
+<pre><code>std gen
+
+output: A4 -&gt; gen::sine -&gt; out: 5
+</code></pre>
+<p>If you run <code>sonny tutorial.son --play</code> again, this time the tone should last for 5 seconds, and the generated file should be named <code>output.wav</code>.</p>
+<p>That's all there is to it. Next, we'll discuss how to program in <a href="https://github.com/kaikalii/sonny/wiki/Notes">notes</a> so that we can make sounds that are a little more interesting.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            document.addEventListener('DOMContentLoaded', function() {
+                window.print();
+            })
+        </script>
+        
+
+        
+
+        
+        <script src="searchindex.js" type="text/javascript" charset="utf-8"></script>
+        
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+    </body>
+</html>

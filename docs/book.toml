@@ -1,0 +1,5 @@
+[book]
+authors = ["Kai Schmidt"]
+multilingual = false
+src = "src"
+title = "Sonny Documentation"
