@@ -310,11 +310,30 @@ impl Lexer {
                             return Token(Operator, token);
                         }
                     },
-                    '#' => while let Some(c) = self.get_char() {
-                        if c == '\n' {
-                            self.loc.line += 1;
-                            self.loc.column = 0;
-                            break;
+                    '#' => if let Some(c) = self.get_char() {
+                        if c == '/' {
+                            while let Some(c) = self.get_char() {
+                                if c == '\n' {
+                                    self.loc.line += 1;
+                                    self.loc.column = 0;
+                                } else {
+                                    if c == '/' {
+                                        if let Some(c) = self.get_char() {
+                                            if c == '#' {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            while let Some(c) = self.get_char() {
+                                if c == '\n' {
+                                    self.loc.line += 1;
+                                    self.loc.column = 0;
+                                    break;
+                                }
+                            }
                         }
                     },
                     _ => {
