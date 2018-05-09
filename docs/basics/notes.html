@@ -3,12 +3,13 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - Sonny Documentation</title>
+        <title>Notes - Sonny Documentation</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
+        <base href="../">
 
         <link rel="stylesheet" href="book.css">
         <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
@@ -68,7 +69,7 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <ol class="chapter"><li class="affix"><a href="introduction.html" class="active">Introduction</a></li><li><a href="basics/intro.html"><strong aria-hidden="true">1.</strong> Basics</a></li><li><ol class="section"><li><a href="basics/generating_a_tone.html"><strong aria-hidden="true">1.1.</strong> Generating A Tone</a></li><li><a href="basics/notes.html"><strong aria-hidden="true">1.2.</strong> Notes</a></li></ol></li></ol>
+            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li><a href="basics/intro.html"><strong aria-hidden="true">1.</strong> Basics</a></li><li><ol class="section"><li><a href="basics/generating_a_tone.html"><strong aria-hidden="true">1.1.</strong> Generating A Tone</a></li><li><a href="basics/notes.html" class="active"><strong aria-hidden="true">1.2.</strong> Notes</a></li></ol></li></ol>
         </nav>
 
         <div id="page-wrapper" class="page-wrapper">
@@ -132,21 +133,66 @@
 
                 <div id="content" class="content">
                     <main>
-                        <a class="header" href="introduction.html#what-is-sonny" id="what-is-sonny"><h2>What is Sonny?</h2></a>
-<p>Sonny is a functional programming language designed for generating and transforming sound. It gives the user the tools to manipulate sound waves in any way they want. What you can accomplish is Sonny is limited only by your imagination (and your grasp of algebra).</p>
-<p>This tutorial will teach you the ins and outs of programming in Sonny. If you do not yet have Sonny installed, you can read the <a href="https://github.com/kaikalii/sonny">installation section of the main repo's readme</a>. It is <em>highly recommended</em> that you add the Sonny executable path to your system path so that you can run it from any directory.</p>
-<p>Once you have Sonny installed, you can start with <a href="https://github.com/kaikalii/sonny/wiki/Generating-A-Tone">generating a tone</a>.</p>
+                        <a class="header" href="basics/notes.html#notes" id="notes"><h1>Notes</h1></a>
+<p>Generating a tone is all well and good, but if you want to actually make a song, you will probably want to write notes. Notes are notated with both a <strong>frequency</strong> and a <strong>duration</strong>.</p>
+<p>Lets modify our example from the previous tutorial.</p>
+<pre><code>std gen
+
+output: A4 -&gt; gen::sine -&gt; out: 5
+</code></pre>
+<p>This program will produce a tone with a duration that is as long as the number you specify after the <code>out</code> term, in this case, 5 seconds. However, this number can only specify the duration of a single note for the entire project. If we want more notes, then we use a special note list syntax.</p>
+<pre><code>std gen
+
+output: {A4:5} -&gt; gen::sine -&gt; out
+</code></pre>
+<p>This will produce identical output to the first program. However, with the note list syntax, we can specify more notes after the first one.</p>
+<pre><code>std gen
+
+output: {A4:2, C#:2} -&gt; gen::sine -&gt; out
+</code></pre>
+<p>This will play an A4 note for 2 seconds followed by a C#4 for 2 seconds. You can put as many notes in the list as you like.</p>
+<pre><code>std gen
+
+output: {A4:2, C#:2, E:1, C#:1, A:2} -&gt; gen::sine -&gt; out
+</code></pre>
+<p>The first note in the list should have its octave specified. All subsequent notes will be in the same octave until you specify a different one. This means that note lists like <code>{A4:1, C#:1, G#3:1, E:1}</code> and <code>{A4:1, C#4:1, G#3:1, E3:1}</code> are identical.</p>
+<p>As before, you can specify a note's frequency as a number of hertz rather than a musical note name.</p>
+<pre><code>{100:2, 235.75:1, 311.32:1}
+</code></pre>
+<p>The above examples specify the note's duration as a number of seconds, but it can also be specified as a musical note duration or as a fraction of four beats. When defining note durations in this way, Sonny takes the project's tempo into account. The default tempo is 120 beats per minute, but you can set it using the <code>tempo</code> keyword.</p>
+<pre><code>tempo: 60
+
+{A4:1, 440:q, A4:1/4}
+</code></pre>
+<p>The notes in the list above are all identical. The <code>q</code> indicates a quarter note duration. You can use <code>w</code>, <code>h</code>, <code>q</code>, <code>e</code>, <code>s</code>, and <code>ts</code> to refer to whole, half, quarter, eighth, sixteenth, and thirty-second beat durations respectively. You can also dot these specifiers to indicate dotted notes. This means that durations like <code>e.</code> and <code>3/16</code> or <code>h..</code> and <code>7/8</code> are identical.</p>
+<p>Let's tie off this section by combining everything.</p>
+<pre><code>std gen
+
+tempo: 112
+
+output: { Eb4:q., Bb3:e, Eb4:q., Bb3:e, Eb4:e, Bb3:e, Eb4:e, G:e, Bb:h } -&gt; gen::sin -&gt; out
+</code></pre>
+<p>This plays the first two measures of Mozart's <em>Eine kleine Nachtmusik</em> at 112 bpm.</p>
+<p>Sonny interprets newlines the same as spaces, so if it makes it easier to read, you can split the last line into multiple.</p>
+<pre><code>std gen
+
+tempo: 112
+
+output:
+    { Eb4:q., Bb3:e, Eb4:q., Bb3:e, Eb4:e, Bb3:e, Eb4:e, G:e, Bb:h } -&gt;
+    gen::sin -&gt; out
+</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-
-                        
-                            <a rel="next" href="basics/intro.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
+                            <a rel="prev" href="basics/generating_a_tone.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
                             </a>
+                        
+
                         
 
                         <div style="clear: both"></div>
@@ -156,11 +202,11 @@
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-
-                
-                    <a href="basics/intro.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
+                    <a href="basics/generating_a_tone.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
                     </a>
+                
+
                 
             </nav>
 

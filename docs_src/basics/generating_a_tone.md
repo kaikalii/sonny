@@ -1,3 +1,5 @@
+# Generating A Tone
+
 The most basic interesting thing you can do in Sonny is generate a tone.
 
 To generate a tone, we have to specify two of its attributes: its **frequency** and its **waveform**.

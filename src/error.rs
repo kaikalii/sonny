@@ -82,7 +82,7 @@ impl Error {
             ExpectedNotesProperty(ref found) => {
                 println!("Expected notes property, found {}.", found)
             }
-            InvalidTerm(ref found) => println!("Invalid term: '{}'.", found),
+            InvalidTerm(ref found) => println!("Invalid term: {}.", found),
             CantFindChain(ref chain_name) => {
                 println!("The {} could not be found in this scope.", chain_name)
             }
