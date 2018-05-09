@@ -68,7 +68,7 @@ After this, you can `cargo build --release` and add /PATH/TO/sonny/target/releas
 
 # Tutorial
 
-To learn the basics or programming is *Sonny*, head over to [the wiki](https://github.com/kaikalii/sonny/wiki).
+To learn the basics or programming ns *Sonny*, head over to [the documentation](https://kaikalii.github.io/sonny/).
 
 # Contributing
 
