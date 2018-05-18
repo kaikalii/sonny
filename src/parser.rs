@@ -173,7 +173,7 @@ impl Parser {
                 }
             } else {
                 // Declare a chain
-                self.chain_declaration()?;
+                self.chain_declaration(false)?;
             }
         }
         // If this is not the top-level parser, finalize the top-level file chain
@@ -500,6 +500,11 @@ impl Parser {
     fn term_identifier(&mut self) -> SonnyResult<Operand> {
         match self.look.0 {
             Num => Ok(Operand::Var(Variable::Number(self.real()?))),
+            StringLiteral => {
+                let op = Ok(Operand::Var(Variable::from(self.look.1.as_ref())));
+                self.mat(StringLiteral)?;
+                op
+            }
             Keyword => {
                 let op = match self.look.1.as_str() {
                     "time" => Operand::Time,
@@ -551,7 +556,7 @@ impl Parser {
                     Ok(Operand::Expression(Box::new(expr)))
                 } else if self.look.1 == "|" {
                     self.mas("|")?;
-                    let name = self.chain_declaration()?;
+                    let name = self.chain_declaration(true)?;
                     self.mas("|")?;
                     Ok(Operand::Id(name))
                 } else if self.look.1 == "[" {
@@ -573,7 +578,7 @@ impl Parser {
             _ => return Err(Error::new(InvalidTerm(self.look.clone())).on_line(self.lexer.loc())),
         }
     }
-    // Match an expression term
+    // Match an expression term, which consists of a term_identifier and an optional indexer
     fn term(&mut self) -> SonnyResult<Expression> {
         let ident = self.term_identifier()?;
         let index = self.indexer()?;
@@ -864,10 +869,10 @@ impl Parser {
         }
         Ok(())
     }
-    // Match an entire chain, including the optional name
-    fn chain_declaration(&mut self) -> SonnyResult<ChainName> {
+    // Match an entire chain, including its name
+    fn chain_declaration(&mut self, name_optional: bool) -> SonnyResult<ChainName> {
         let mut name = None;
-        if self.look.0 == Id && self.peek().1 == ":" {
+        if self.look.0 == Id && self.peek().1 == ":" || !name_optional {
             name = Some(self.look.1.clone());
             self.mat(Id)?;
             self.mas(":")?;

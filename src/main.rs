@@ -182,7 +182,7 @@ fn write(
             }
             let window_result = builder.evaluate_chain(&name, &[], time, window_size, sample_rate);
             for (i, r) in window_result.into_iter().enumerate() {
-                song[i + window_start] = r.to_f64();
+                song[i + window_start] = f64::from(r);
             }
         }
         // Print the final progress bar

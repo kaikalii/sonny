@@ -36,6 +36,7 @@ pub enum TokenType {
     Operator,
     Id,
     Num,
+    StringLiteral,
     NoteString,
     Keyword,
     Delimeter,
@@ -52,6 +53,7 @@ impl fmt::Display for TokenType {
             Operator => write!(f, "operator"),
             Id => write!(f, "id"),
             Num => write!(f, "num"),
+            StringLiteral => write!(f, "string literal"),
             NoteString => write!(f, "pitch"),
             Keyword => write!(f, "keyword"),
             Delimeter => write!(f, "delimeter"),
@@ -76,6 +78,7 @@ impl fmt::Display for Token {
             Operator => write!(f, "operator: '{}'", self.1),
             Id => write!(f, "id: '{}'", self.1),
             Num => write!(f, "num: '{}'", self.1),
+            StringLiteral => write!(f, "literal: \"{}\"", self.1),
             NoteString => write!(f, "pitch: '{}'", self.1),
             Keyword => write!(f, "keyword: '{}'", self.1),
             Delimeter => write!(f, "delimeter: '{}'", self.1),
@@ -335,6 +338,29 @@ impl Lexer {
                             }
                         }
                     },
+                    '"' => {
+                        token = String::new();
+                        let mut escape = false;
+                        while let Some(c) = self.get_char() {
+                            if c == '"' && !escape {
+                                break;
+                            }
+
+                            if c == '\\' && !escape {
+                                escape = true;
+                            } else if escape {
+                                escape = false;
+                            } else {
+                                token.push(c);
+                                if c == '\n' {
+                                    self.loc.line += 1;
+                                    self.loc.column = 0;
+                                    break;
+                                }
+                            }
+                        }
+                        return Token(StringLiteral, token);
+                    }
                     _ => {
                         token.push(c);
                         return Token(Unknown, token);

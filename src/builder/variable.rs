@@ -10,17 +10,33 @@ pub enum Variable {
     Array(Vec<Variable>),
 }
 
-impl Variable {
-    pub fn to_f64(&self) -> f64 {
+impl From<Variable> for f64 {
+    fn from(v: Variable) -> f64 {
         use self::Variable::*;
-        match *self {
-            Number(ref x) => *x,
-            Array(ref x) => x.into_iter()
-                .next()
-                .cloned()
-                .unwrap_or(Variable::Number(0.0))
-                .to_f64(),
+        match v {
+            Number(x) => x,
+            Array(x) => x.into_iter().next().unwrap_or(Variable::Number(0.0)).into(),
         }
+    }
+}
+
+impl<'a> From<&'a Variable> for f64 {
+    fn from(v: &'a Variable) -> f64 {
+        use self::Variable::*;
+        match *v {
+            Number(ref x) => *x,
+            Array(ref x) => x.iter().next().unwrap_or(&Variable::Number(0.0)).into(),
+        }
+    }
+}
+
+impl<'a> From<&'a str> for Variable {
+    fn from(s: &str) -> Variable {
+        Variable::Array(
+            s.chars()
+                .map(|c| Variable::Number(c as u32 as f64))
+                .collect(),
+        )
     }
 }
 
@@ -183,7 +199,7 @@ impl ops::Index<Variable> for Variable {
         use self::Variable::*;
         match *self {
             Number(..) => self,
-            Array(ref x) => &x[i.to_f64() as usize],
+            Array(ref x) => &x[f64::from(i) as usize],
         }
     }
 }
@@ -291,8 +307,8 @@ impl Variable {
             Number(..) => self.clone(),
             Array(ref x) => Array(
                 x.iter()
-                    .skip(start.to_f64() as usize)
-                    .take((end.clone() - start.clone()).to_f64() as usize)
+                    .skip(f64::from(start) as usize)
+                    .take(f64::from(end.clone() - start.clone()) as usize)
                     .cloned()
                     .collect(),
             ),
