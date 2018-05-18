@@ -112,9 +112,9 @@ impl Builder {
                                     End => Variable::Number(note.period.end),
                                     Duration => Variable::Number(note.period.duration()),
                                     All => Variable::Array(vec![
-                                        note.period.start,
-                                        note.period.end,
-                                        note.period.duration(),
+                                        Variable::Number(note.period.start),
+                                        Variable::Number(note.period.end),
+                                        Variable::Number(note.period.duration()),
                                     ]),
                                 }
                             // return zero if time is after the period of the notes
@@ -306,7 +306,7 @@ impl Builder {
                 .collect(),
             Index(..) => x.into_par_iter()
                 .zip(y.expect("failed to unwrap y in index").into_par_iter())
-                .map(|(x, y)| x.index(&y))
+                .map(|(x, y)| x[y].clone())
                 .collect(),
             SubArray(..) => x.into_par_iter()
                 .zip(

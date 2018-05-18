@@ -7,7 +7,7 @@ use std::ops;
 #[allow(dead_code)]
 pub enum Variable {
     Number(f64),
-    Array(Vec<f64>),
+    Array(Vec<Variable>),
 }
 
 impl Variable {
@@ -15,7 +15,11 @@ impl Variable {
         use self::Variable::*;
         match *self {
             Number(ref x) => *x,
-            Array(ref x) => x.into_iter().next().cloned().unwrap_or(0.0),
+            Array(ref x) => x.into_iter()
+                .next()
+                .cloned()
+                .unwrap_or(Variable::Number(0.0))
+                .to_f64(),
         }
     }
 }
@@ -26,10 +30,10 @@ impl PartialEq for Variable {
         match self {
             Number(x) => match b {
                 Number(y) => *x == *y,
-                Array(ref y) => y.iter().all(|y| x == y),
+                Array(ref y) => y.iter().all(|y| Number(*x) == *y),
             },
             Array(ref x) => match b {
-                Number(y) => x.iter().all(|x| x == y),
+                Number(y) => x.iter().all(|x| *x == Number(*y)),
                 Array(ref y) => x.iter().zip(y.iter()).all(|(x, y)| x == y),
             },
         }
@@ -59,11 +63,16 @@ impl ops::Add<Variable> for Variable {
         match self {
             Number(x) => match b {
                 Number(y) => Number(x + y),
-                Array(ref y) => Array(y.iter().map(|y| x + y).collect()),
+                Array(ref y) => Array(y.iter().map(|y| Number(x) + y.clone()).collect()),
             },
             Array(ref x) => match b {
-                Number(y) => Array(x.iter().map(|x| x + y).collect()),
-                Array(ref y) => Array(x.iter().zip(y.iter()).map(|(x, y)| x + y).collect()),
+                Number(y) => Array(x.iter().map(|x| x.clone() + Number(y)).collect()),
+                Array(ref y) => Array(
+                    x.iter()
+                        .zip(y.iter())
+                        .map(|(x, y)| x.clone() + y.clone())
+                        .collect(),
+                ),
             },
         }
     }
@@ -76,11 +85,16 @@ impl ops::Sub<Variable> for Variable {
         match self {
             Number(x) => match b {
                 Number(y) => Number(x - y),
-                Array(ref y) => Array(y.iter().map(|y| x - y).collect()),
+                Array(ref y) => Array(y.iter().map(|y| Number(x) - y.clone()).collect()),
             },
             Array(ref x) => match b {
-                Number(y) => Array(x.iter().map(|x| x - y).collect()),
-                Array(ref y) => Array(x.iter().zip(y.iter()).map(|(x, y)| x - y).collect()),
+                Number(y) => Array(x.iter().map(|x| x.clone() - Number(y)).collect()),
+                Array(ref y) => Array(
+                    x.iter()
+                        .zip(y.iter())
+                        .map(|(x, y)| x.clone() - y.clone())
+                        .collect(),
+                ),
             },
         }
     }
@@ -93,11 +107,16 @@ impl ops::Mul<Variable> for Variable {
         match self {
             Number(x) => match b {
                 Number(y) => Number(x * y),
-                Array(ref y) => Array(y.iter().map(|y| x * y).collect()),
+                Array(ref y) => Array(y.iter().map(|y| Number(x) * y.clone()).collect()),
             },
             Array(ref x) => match b {
-                Number(y) => Array(x.iter().map(|x| x * y).collect()),
-                Array(ref y) => Array(x.iter().zip(y.iter()).map(|(x, y)| x * y).collect()),
+                Number(y) => Array(x.iter().map(|x| x.clone() * Number(y)).collect()),
+                Array(ref y) => Array(
+                    x.iter()
+                        .zip(y.iter())
+                        .map(|(x, y)| x.clone() * y.clone())
+                        .collect(),
+                ),
             },
         }
     }
@@ -110,11 +129,16 @@ impl ops::Div<Variable> for Variable {
         match self {
             Number(x) => match b {
                 Number(y) => Number(x / y),
-                Array(ref y) => Array(y.iter().map(|y| x / y).collect()),
+                Array(ref y) => Array(y.iter().map(|y| Number(x) / y.clone()).collect()),
             },
             Array(ref x) => match b {
-                Number(y) => Array(x.iter().map(|x| x / y).collect()),
-                Array(ref y) => Array(x.iter().zip(y.iter()).map(|(x, y)| x / y).collect()),
+                Number(y) => Array(x.iter().map(|x| x.clone() / Number(y)).collect()),
+                Array(ref y) => Array(
+                    x.iter()
+                        .zip(y.iter())
+                        .map(|(x, y)| x.clone() / y.clone())
+                        .collect(),
+                ),
             },
         }
     }
@@ -127,11 +151,16 @@ impl ops::Rem<Variable> for Variable {
         match self {
             Number(x) => match b {
                 Number(y) => Number(x % y),
-                Array(ref y) => Array(y.iter().map(|y| x % y).collect()),
+                Array(ref y) => Array(y.iter().map(|y| Number(x) % y.clone()).collect()),
             },
             Array(ref x) => match b {
-                Number(y) => Array(x.iter().map(|x| x % y).collect()),
-                Array(ref y) => Array(x.iter().zip(y.iter()).map(|(x, y)| x % y).collect()),
+                Number(y) => Array(x.iter().map(|x| x.clone() % Number(y)).collect()),
+                Array(ref y) => Array(
+                    x.iter()
+                        .zip(y.iter())
+                        .map(|(x, y)| x.clone() % y.clone())
+                        .collect(),
+                ),
             },
         }
     }
@@ -143,18 +172,18 @@ impl ops::Neg for Variable {
         use self::Variable::*;
         match self {
             Number(x) => Number(-x),
-            Array(ref x) => Array(x.iter().map(|x| -x).collect()),
+            Array(ref x) => Array(x.iter().map(|x| -x.clone()).collect()),
         }
     }
 }
 
-impl ops::Index<usize> for Variable {
-    type Output = f64;
-    fn index(&self, i: usize) -> &f64 {
+impl ops::Index<Variable> for Variable {
+    type Output = Variable;
+    fn index(&self, i: Variable) -> &Variable {
         use self::Variable::*;
         match *self {
-            Number(ref x) => x,
-            Array(ref x) => &x[i],
+            Number(..) => self,
+            Array(ref x) => &x[i.to_f64() as usize],
         }
     }
 }
@@ -165,11 +194,16 @@ impl Variable {
         match *self {
             Number(x) => match power {
                 Number(y) => Number(x.powf(y)),
-                Array(ref y) => Array(y.iter().map(|y| x.powf(*y)).collect()),
+                Array(ref y) => Array(y.iter().map(|y| Number(x).pow(y.clone())).collect()),
             },
             Array(ref x) => match power {
-                Number(y) => Array(x.iter().map(|x| x.powf(y)).collect()),
-                Array(ref y) => Array(x.iter().zip(y.iter()).map(|(x, y)| x.powf(*y)).collect()),
+                Number(y) => Array(x.iter().map(|x| x.pow(Number(y))).collect()),
+                Array(ref y) => Array(
+                    x.iter()
+                        .zip(y.iter())
+                        .map(|(x, y)| x.pow(y.clone()))
+                        .collect(),
+                ),
             },
         }
     }
@@ -178,11 +212,16 @@ impl Variable {
         match *self {
             Number(x) => match power {
                 Number(y) => Number(x.min(y)),
-                Array(ref y) => Array(y.iter().map(|y| x.min(*y)).collect()),
+                Array(ref y) => Array(y.iter().map(|y| Number(x).min(y.clone())).collect()),
             },
             Array(ref x) => match power {
-                Number(y) => Array(x.iter().map(|x| x.min(y)).collect()),
-                Array(ref y) => Array(x.iter().zip(y.iter()).map(|(x, y)| x.min(*y)).collect()),
+                Number(y) => Array(x.iter().map(|x| x.min(Number(y))).collect()),
+                Array(ref y) => Array(
+                    x.iter()
+                        .zip(y.iter())
+                        .map(|(x, y)| x.min(y.clone()))
+                        .collect(),
+                ),
             },
         }
     }
@@ -191,11 +230,16 @@ impl Variable {
         match *self {
             Number(x) => match power {
                 Number(y) => Number(x.max(y)),
-                Array(ref y) => Array(y.iter().map(|y| x.max(*y)).collect()),
+                Array(ref y) => Array(y.iter().map(|y| Number(x).max(y.clone())).collect()),
             },
             Array(ref x) => match power {
-                Number(y) => Array(x.iter().map(|x| x.max(y)).collect()),
-                Array(ref y) => Array(x.iter().zip(y.iter()).map(|(x, y)| x.max(*y)).collect()),
+                Number(y) => Array(x.iter().map(|x| x.max(Number(y))).collect()),
+                Array(ref y) => Array(
+                    x.iter()
+                        .zip(y.iter())
+                        .map(|(x, y)| x.max(y.clone()))
+                        .collect(),
+                ),
             },
         }
     }
@@ -203,7 +247,7 @@ impl Variable {
         use self::Variable::*;
         match *self {
             Number(x) => Number(x.log(f64::consts::E)),
-            Array(ref x) => Array(x.iter().map(|x| x.log(f64::consts::E)).collect()),
+            Array(ref x) => Array(x.iter().map(|x| x.ln()).collect()),
         }
     }
     pub fn sin(&self) -> Variable {
@@ -254,24 +298,13 @@ impl Variable {
             ),
         }
     }
-    pub fn index(&self, index: &Variable) -> Variable {
-        use self::Variable::*;
-        match *self {
-            Number(..) => self.clone(),
-            Array(ref x) => Number(
-                x.iter()
-                    .skip(index.to_f64() as usize)
-                    .next()
-                    .cloned()
-                    .unwrap_or(0.0),
-            ),
-        }
-    }
     pub fn average(&self) -> Variable {
         use self::Variable::*;
         match *self {
             Number(..) => self.clone(),
-            Array(ref x) => Number(x.iter().fold(0.0, |sum, val| sum + val) / x.len() as f64),
+            Array(ref x) => {
+                x.iter().fold(Number(0.0), |sum, val| sum + val.clone()) / Number(x.len() as f64)
+            }
         }
     }
 }
