@@ -56,7 +56,7 @@ id_chars -> alpha_num_us id_chars
 id -> letter id_chars
 	| _ id_chars
 
-built_in -> start | end
+built_in -> start | end | dur | prop
 
 global -> time | window_size | sample_rate
 

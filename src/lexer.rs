@@ -19,6 +19,7 @@ static KEYWORDS: &[&'static str] = &[
     "end",
     "out",
     "dur",
+    "prop",
     "w",
     "h",
     "q",

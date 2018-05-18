@@ -111,6 +111,11 @@ impl Builder {
                                     Start => Variable::Number(note.period.start),
                                     End => Variable::Number(note.period.end),
                                     Duration => Variable::Number(note.period.duration()),
+                                    All => Variable::Array(vec![
+                                        note.period.start,
+                                        note.period.end,
+                                        note.period.duration(),
+                                    ]),
                                 }
                             // return zero if time is after the period of the notes
                             } else {

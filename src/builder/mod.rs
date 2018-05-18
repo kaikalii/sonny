@@ -16,6 +16,7 @@ pub enum Property {
     Start,
     End,
     Duration,
+    All,
 }
 
 // Different types of operands
