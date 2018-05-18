@@ -117,9 +117,9 @@ impl Period {
 }
 
 // A pitch with a period
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Note {
-    pub pitch: f64,
+    pub pitches: Vec<f64>,
     pub period: Period,
 }
 
@@ -295,7 +295,7 @@ impl Builder {
                         let mut new_notes = Vec::new();
                         for note in notes {
                             new_notes.push(Note {
-                                pitch: note.pitch,
+                                pitches: note.pitches.clone(),
                                 period: Period {
                                     start: curr_time,
                                     end: curr_time + note.period.duration(),

@@ -54,7 +54,7 @@ impl ChainLinks {
                                     && note.period.end + local_offset > time
                                 {
                                     return Some(Note {
-                                        pitch: note.pitch,
+                                        pitches: note.pitches.clone(),
                                         period: Period {
                                             start: note.period.start + local_offset,
                                             end: note.period.end + local_offset,
@@ -149,14 +149,14 @@ impl Builder {
                 .into_par_iter()
                 .map(|i| time + i as f64 / sample_rate)
                 .map(|t| {
-                    let mut result = 0.0;
+                    let mut result = Vec::new();
                     for note in notes {
                         if note.period.contains(t) {
-                            result = note.pitch;
+                            result = note.pitches.clone();
                             break;
                         }
                     }
-                    Variable::Number(result)
+                    Variable::Array(result.into_iter().map(|p| Variable::Number(p)).collect())
                 })
                 .collect(),
             // Evaluate expressions
@@ -393,12 +393,14 @@ impl Builder {
                     .into_par_iter()
                     .map(|i| time + i as f64 / sample_rate)
                     .map(|t| {
-                        Variable::Number(
+                        Variable::Array(
                             chain
                                 .links
                                 .find_note(t, 0.0, &self)
-                                .map(|n| n.pitch)
-                                .unwrap_or(0.0),
+                                .map(|n| {
+                                    n.pitches.into_iter().map(|p| Variable::Number(p)).collect()
+                                })
+                                .unwrap_or(Vec::new()),
                         )
                     })
                     .collect(),

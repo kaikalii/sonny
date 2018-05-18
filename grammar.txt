@@ -23,9 +23,16 @@ real -> num
 
 note_notation -> pitch_letter accidental octave
 
-pitch -> note_notation
+pitch_element -> note_notation
 	| real
 	| _
+
+pitch_list -> pitch_element , pitch_list
+	| pitch_element
+	| \0
+
+pitch -> [ pitch_list ]
+	| pitch_element
 
 dots -> . dots
 	| \0

@@ -316,8 +316,8 @@ impl Parser {
         let offset = local_offset + (octave * 12) as i32;
         16.3516f64 * 1.059463094359f64.powf(offset as f64)
     }
-    // Match a pitch
-    fn pitch(&mut self) -> SonnyResult<f64> {
+    // Match a pitch element
+    fn pitch_element(&mut self) -> SonnyResult<f64> {
         Ok(if self.look.0 == NoteString {
             let note_string = self.look.1.clone();
             let pitch = self.string_to_pitch(&note_string);
@@ -331,6 +331,32 @@ impl Parser {
         } else {
             return Err(Error::new(InvalidPitch(self.look.clone())).on_line(self.lexer.loc()));
         })
+    }
+    // Match a list of pitches
+    fn pitch_list(&mut self) -> SonnyResult<Vec<f64>> {
+        let mut result = Vec::new();
+        if self.look.1 != "]" {
+            result.push(self.pitch_element()?);
+            while self.look.1 == "," {
+                self.mas(",")?;
+                if self.look.1 == "]" {
+                    break;
+                }
+                result.push(self.pitch_element()?);
+            }
+        }
+        Ok(result)
+    }
+    // Match a pitch
+    fn pitch(&mut self) -> SonnyResult<Vec<f64>> {
+        if self.look.1 == "[" {
+            self.mas("[")?;
+            let list = self.pitch_list()?;
+            self.mas("]")?;
+            Ok(list)
+        } else {
+            Ok(vec![self.pitch_element()?])
+        }
     }
     // Match a sequence of '.'s
     fn dots(&mut self) -> SonnyResult<usize> {
@@ -403,7 +429,7 @@ impl Parser {
         };
         self.curr_time += duration;
         Ok(Note {
-            pitch,
+            pitches: pitch,
             period: Period {
                 start: self.curr_time - duration,
                 end: self.curr_time,

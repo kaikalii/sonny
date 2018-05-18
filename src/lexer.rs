@@ -164,7 +164,7 @@ impl Lexer {
                 token.push(c);
                 // Check for ids, keywords, built_ins and notes
                 while let Some(c) = self.get_char() {
-                    if c.is_alphanumeric() || c == '_' {
+                    if c.is_alphanumeric() || c == '_' || c == '#' {
                         token.push(c);
                     } else {
                         self.put_back();
