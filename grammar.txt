@@ -65,6 +65,10 @@ backlink -> ! num
 indexer -> [expression]
 	| [expression..expression]
 
+expression_list -> expression , expression_list
+	| expression
+	| \0
+
 term_identifier -> real
 	| global
 	| id

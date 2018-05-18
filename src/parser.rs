@@ -455,6 +455,21 @@ impl Parser {
             Ok((None, None))
         }
     }
+    // Match a list of expressions
+    fn expression_list(&mut self) -> SonnyResult<Operand> {
+        let mut result = Vec::new();
+        if self.look.1 != "]" {
+            result.push(self.expression()?);
+            while self.look.1 == "," {
+                self.mas(",")?;
+                if self.look.1 == "]" {
+                    break;
+                }
+                result.push(self.expression()?);
+            }
+        }
+        Ok(Operand::Array(result))
+    }
     // Match an expression term identifier
     fn term_identifier(&mut self) -> SonnyResult<Operand> {
         match self.look.0 {
@@ -530,6 +545,11 @@ impl Parser {
                     let name = self.chain_declaration()?;
                     self.mas("|")?;
                     Ok(Operand::Id(name))
+                } else if self.look.1 == "[" {
+                    self.mas("[")?;
+                    let list = self.expression_list()?;
+                    self.mas("]")?;
+                    Ok(list)
                 } else {
                     return Err(Error::new(InvalidDelimeter(self.look.1.clone())).on_line(self.lexer.loc()));
                 }

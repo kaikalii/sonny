@@ -163,6 +163,35 @@ impl Builder {
             Expression(ref expression) => {
                 self.evaluate_expression(expression, name, args, time, window_size, sample_rate)
             }
+            // Evaluate an array
+            Array(ref expressions) => {
+                let uncollated: Vec<Variables> = expressions
+                    .iter()
+                    .map(|expression| {
+                        self.evaluate_expression(
+                            expression,
+                            name,
+                            args,
+                            time,
+                            window_size,
+                            sample_rate,
+                        )
+                    })
+                    .collect();
+                let mut result =
+                    vec![
+                        Variable::Array(vec![Variable::Number(0.0); expressions.len()]);
+                        window_size
+                    ];
+                for (i, vars) in uncollated.into_iter().enumerate() {
+                    for (j, var) in vars.into_iter().enumerate() {
+                        if let Variable::Array(ref mut v) = result[j] {
+                            v[i] = var;
+                        }
+                    }
+                }
+                result
+            }
         }
     }
 

@@ -31,6 +31,7 @@ pub enum Operand {
     SampleRate,
     Notes(Vec<Note>),
     Expression(Box<Expression>),
+    Array(Vec<Expression>),
 }
 
 // Different types of operations
