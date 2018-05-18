@@ -16,10 +16,7 @@ static KEYWORDS: &[&'static str] = &[
     "max",
     "log",
     "avg",
-    "end",
     "out",
-    "dur",
-    "all",
     "w",
     "h",
     "q",
@@ -302,7 +299,7 @@ impl Lexer {
                         }
                     },
                     '_' => return Token(Rest, token),
-                    '+' | '*' | '%' | '^' | '?' | '/' => return Token(Operator, token),
+                    '+' | '*' | '%' | '^' | '?' | '/' | '~' => return Token(Operator, token),
                     '-' => if let Some(c) = self.get_char() {
                         if c == '>' {
                             token.push(c);

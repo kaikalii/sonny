@@ -14,12 +14,11 @@ pub enum ErrorSpec {
     DurationQuantifier(Token),
     InvalidBackLink(Token),
     InvalidKeyword(String),
-    ExpectedNotesProperty(Token),
     InvalidTerm(Token),
     CantFindChain(ChainName),
     UnexpectedEndOfFile,
     ZeroBacklink,
-    PropertyOfGenericChain(ChainName, String),
+    PropertiesOfGenericChain(ChainName),
     DurationOfGenericChain(ChainName),
     NamedChainInAnonChain(String),
     ChainRedeclaration(ChainName),
@@ -80,18 +79,15 @@ impl Error {
             InvalidKeyword(ref found) => {
                 println!("Keyword is invalid in this context: '{}'.", found)
             }
-            ExpectedNotesProperty(ref found) => {
-                println!("Expected notes property, found {}.", found)
-            }
             InvalidTerm(ref found) => println!("Invalid term: {}.", found),
             CantFindChain(ref chain_name) => {
                 println!("The {} could not be found in this scope.", chain_name)
             }
             UnexpectedEndOfFile => println!("Unexpected end of file."),
             ZeroBacklink => println!("Backlinks must be greater than 0."),
-            PropertyOfGenericChain(ref chain_name, ref property_name) => println!(
-                "The {} contains expressions, so the property '{}' cannot be taken from it.",
-                chain_name, property_name
+            PropertiesOfGenericChain(ref chain_name) => println!(
+                "The {} contains expressions, so properties cannot be taken from it.",
+                chain_name
             ),
             DurationOfGenericChain(ref chain_name) => println!(
                 "The {} contains expressions, so it cannot be used to define a note duration",

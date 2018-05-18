@@ -526,32 +526,15 @@ impl Parser {
                     Some(ref chain) => name = chain.name.clone(),
                     None => return Err(Error::new(CantFindChain(name)).on_line(self.lexer.loc())),
                 }
-                if self.look.1 == "." {
-                    self.mas(".")?;
-                    let property_name = self.look.1.clone();
-                    let operand = if self.look.1 == "start" {
-                        self.mas("start")?;
-                        Ok(Operand::Property(name.clone(), Property::Start))
-                    } else if self.look.1 == "end" {
-                        self.mas("end")?;
-                        Ok(Operand::Property(name.clone(), Property::End))
-                    } else if self.look.1 == "dur" {
-                        self.mas("dur")?;
-                        Ok(Operand::Property(name.clone(), Property::Duration))
-                    } else if self.look.1 == "all" {
-                        self.mas("all")?;
-                        Ok(Operand::Property(name.clone(), Property::All))
-                    } else {
-                        Err(Error::new(ExpectedNotesProperty(self.look.clone()))
-                            .on_line(self.lexer.loc()))
-                    };
+                if self.look.1 == "~" {
+                    self.mas("~")?;
+                    let operand = Ok(Operand::Properties(name.clone()));
                     if let ChainLinks::Generic(..) = self.builder
                         .find_chain(&name)
                         .expect("Unable to find chain")
                         .links
                     {
-                        return Err(Error::new(PropertyOfGenericChain(name, property_name))
-                            .on_line(self.lexer.loc()));
+                        return Err(Error::new(PropertiesOfGenericChain(name)).on_line(self.lexer.loc()));
                     }
                     operand
                 } else {

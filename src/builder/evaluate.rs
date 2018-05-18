@@ -94,7 +94,7 @@ impl Builder {
             // for Ids, call the associated function
             Id(ref id) => self.evaluate_chain(id, args, time, window_size, sample_rate),
             // for Notes Properties...
-            Property(ref id, property) => if let Some(chain) = self.find_chain(id) {
+            Properties(ref id) => if let Some(chain) = self.find_chain(id) {
                 (0..window_size)
                     .collect::<Vec<usize>>()
                     .into_par_iter()
@@ -106,23 +106,14 @@ impl Builder {
                         if let ChainLinks::OnlyNotes(..) = chain.links {
                             // Try to find the note and return it if it is found
                             if let Some(note) = chain.links.find_note(t, 0.0, &self) {
-                                use builder::Property::*;
-                                match property {
-                                    Start => Variable::Number(note.period.start),
-                                    End => Variable::Number(note.period.end),
-                                    Duration => Variable::Number(note.period.duration()),
-                                    All => Variable::Array(vec![
-                                        Variable::Array(
-                                            note.pitches
-                                                .iter()
-                                                .map(|p| Variable::Number(*p))
-                                                .collect(),
-                                        ),
-                                        Variable::Number(note.period.start),
-                                        Variable::Number(note.period.end),
-                                        Variable::Number(note.period.duration()),
-                                    ]),
-                                }
+                                Variable::Array(vec![
+                                    Variable::Array(
+                                        note.pitches.iter().map(|p| Variable::Number(*p)).collect(),
+                                    ),
+                                    Variable::Number(note.period.start),
+                                    Variable::Number(note.period.end),
+                                    Variable::Number(note.period.duration()),
+                                ])
                             // return zero if time is after the period of the notes
                             } else {
                                 Variable::Number(0.0)

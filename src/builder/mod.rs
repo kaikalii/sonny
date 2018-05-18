@@ -10,21 +10,12 @@ use lexer::CodeLocation;
 
 use self::variable::*;
 
-// Different types of Notes properties
-#[derive(Debug, Clone, Copy)]
-pub enum Property {
-    Start,
-    End,
-    Duration,
-    All,
-}
-
 // Different types of operands
 #[derive(Debug, Clone)]
 pub enum Operand {
     Var(Variable),
     Id(ChainName),
-    Property(ChainName, Property),
+    Properties(ChainName),
     BackLink(usize),
     Time,
     WindowSize,
