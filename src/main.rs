@@ -6,10 +6,9 @@ extern crate open;
 extern crate rayon;
 extern crate rustfft;
 
-#[macro_use]
-mod lexer;
 mod builder;
 mod error;
+mod lexer;
 mod parser;
 
 use std::{env, f64, i16};

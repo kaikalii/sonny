@@ -385,7 +385,22 @@ impl Parser {
     fn note(&mut self) -> SonnyResult<Note> {
         let pitch = self.pitch()?;
         self.mas(":")?;
-        let duration = self.duration()?;
+        let duration = if self.look.0 == Id {
+            let possible_chain_name = ChainName::Scoped(self.look.1.clone());
+            self.mat(Id)?;
+            if let Some(ref chain) = self.builder.find_chain(&possible_chain_name) {
+                if let ChainLinks::OnlyNotes(ref _notes_or_ids, period) = chain.links {
+                    period.duration()
+                } else {
+                    return Err(Error::new(DurationOfGenericChain(possible_chain_name))
+                        .on_line(self.lexer.loc()));
+                }
+            } else {
+                return Err(Error::new(CantFindChain(possible_chain_name)).on_line(self.lexer.loc()));
+            }
+        } else {
+            self.duration()?
+        };
         self.curr_time += duration;
         Ok(Note {
             pitch,

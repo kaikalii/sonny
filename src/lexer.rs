@@ -301,7 +301,7 @@ impl Lexer {
                         }
                     },
                     '_' => return Token(Rest, token),
-                    '+' | '*' | '%' | '^' | '?' => return Token(Operator, token),
+                    '+' | '*' | '%' | '^' | '?' | '/' => return Token(Operator, token),
                     '-' => if let Some(c) = self.get_char() {
                         if c == '>' {
                             token.push(c);
@@ -311,25 +311,32 @@ impl Lexer {
                             return Token(Operator, token);
                         }
                     },
-                    '/' => {
-                        if let Some(c) = self.get_char() {
-                            match c {
-                                '/' => {
-                                    while let Some(c) = self.get_char() {
-                                        if c == '\n' {
-                                            self.loc.line += 1;
-                                            self.loc.column = 0;
-                                            break;
+                    '#' => if let Some(c) = self.get_char() {
+                        if c == '/' {
+                            while let Some(c) = self.get_char() {
+                                if c == '\n' {
+                                    self.loc.line += 1;
+                                    self.loc.column = 0;
+                                } else {
+                                    if c == '/' {
+                                        if let Some(c) = self.get_char() {
+                                            if c == '#' {
+                                                break;
+                                            }
                                         }
                                     }
                                 }
-                                _ => {
-                                    self.put_back();
-                                    return Token(Operator, token);
+                            }
+                        } else {
+                            while let Some(c) = self.get_char() {
+                                if c == '\n' {
+                                    self.loc.line += 1;
+                                    self.loc.column = 0;
+                                    break;
                                 }
                             }
                         }
-                    }
+                    },
                     _ => {
                         token.push(c);
                         return Token(Unknown, token);

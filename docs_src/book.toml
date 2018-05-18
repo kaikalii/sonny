@@ -1,0 +1,8 @@
+[book]
+authors = ["Kai Schmidt"]
+multilingual = false
+src = "."
+title = "Sonny Documentation"
+
+[build]
+build-dir = "../docs"
