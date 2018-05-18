@@ -11,7 +11,14 @@ mod error;
 mod lexer;
 mod parser;
 
-use std::{env, f64, i16};
+use std::{collections::VecDeque,
+          env,
+          f64,
+          i16,
+          io::{stdout, Write},
+          time::Instant};
+
+use colored::*;
 
 use builder::*;
 use error::*;
@@ -73,7 +80,7 @@ Options:
     -r | --sample_rate      Set the sample rate of the output file
                             in samples/second (default is 32000)
     -w | --window           Set the size of the processing window
-                            (default it )
+                            (default is 4000)
     -s | --start            Set the start time of the output file
     -e | --end              Set the end time of the output file
     -p | --play             Plays the output file after it is
@@ -122,7 +129,7 @@ fn write(
     play: bool,
 ) -> SonnyResult<()> {
     // Find the audio end time
-    // TODO: make this get done on a per-outchain basis
+    // TODO: make this only take into account chains that are actually used
     let mut end: f64 = 1.0;
     for chain in builder.chains.values() {
         if let ChainLinks::OnlyNotes(ref _notes_or_ids, period) = chain.links {
@@ -139,9 +146,37 @@ fn write(
         // populate the sample array with its own indicies so because par_iter doesn't have enumerate()
         let mut song = vec![0f64; (sample_rate * (end - start_time)) as usize];
         // run each sample window as a batch
-        let mut time;
+        let mut then = Instant::now(); // Keeps track of the time when the last window iteration started
+        let mut last_elapsed = VecDeque::new(); // Keeps a moving list of elapsed time values for a running average
+        let start_instant = Instant::now(); // The time the evaluation started
         for window_start in (0..(song.len() / window_size)).map(|x| x * window_size) {
-            time = window_start as f64 / sample_rate + start_time;
+            // Determine the time
+            let time = window_start as f64 / sample_rate + start_time;
+
+            // Print a progress bar
+            let progress = (time / end * 41.0) as usize;
+            print!(
+                "\r{} [{}>{}] ",
+                format!("{:.2} / {:.2} s", time, end - start_time).cyan(),
+                (0..progress).map(|_| '=').collect::<String>(),
+                (0..(40 - progress)).map(|_| ' ').collect::<String>()
+            );
+            // Print an eta
+            let now = Instant::now();
+            let elapsed = now.duration_since(then);
+            then = now;
+            let elapsed = elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1e9;
+            last_elapsed.push_back(elapsed);
+            if last_elapsed.len() > 30 {
+                last_elapsed.pop_front();
+            }
+            let rate = (window_size as f64 / sample_rate)
+                / (last_elapsed.iter().sum::<f64>() / last_elapsed.len() as f64);
+            let eta = (end - time) / rate;
+            print!("eta: {}", format!("{:.2}s", eta).cyan());
+            stdout().flush().expect("Unable to flush stdout");
+
+            // Evaluate
             if time >= end {
                 break;
             }
@@ -150,6 +185,18 @@ fn write(
                 song[i + window_start] = r.to_f64();
             }
         }
+        // Print the final progress bar
+        let total_elapsed = Instant::now().duration_since(start_instant);
+        print!("\r                                                                                               \r");
+        println!(
+            "{} [{}>] elapsed: {}",
+            format!("{:.2} / {:.2} s", end - start_time, end - start_time).cyan(),
+            (0..40).map(|_| '=').collect::<String>(),
+            format!(
+                "{:5.2} s",
+                total_elapsed.as_secs() as f64 + total_elapsed.subsec_nanos() as f64 / 1e9
+            ).cyan()
+        );
 
         // Write the audio file
         let filename;
