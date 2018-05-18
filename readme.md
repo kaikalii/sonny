@@ -35,8 +35,9 @@ The language should (eventually)...
 * be capable of creating any audio file that a typical DAW (Digital Audio Workstation) program like Ableton, Reason, or Logic are capable of making.
 * be easy to use for the purposes of sound design and audio generation.
 * be fast. A decent machine should be capable of continuous audio generation and playback without any pauses.
-* have the simplest, nicest-looking syntax possible without sacrificing features. (This is obviously subjective.)
-* be compatible with all major desktop operating systems
+* have simple, nice-looking syntax. (This is obviously subjective.)
+* be compatible with all major desktop operating systems.
+* not require a GUI for the vast majority of features.
 
 ### Non-Goals
 
