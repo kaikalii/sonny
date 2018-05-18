@@ -579,6 +579,11 @@ impl Parser {
             Expression(Operation::AbsoluteValue(Operand::Expression(Box::new(
                 self.exp_un()?,
             ))))
+        } else if &self.look.1 == "avg" {
+            self.mas("avg")?;
+            Expression(Operation::Average(Operand::Expression(Box::new(
+                self.exp_un()?,
+            ))))
         } else {
             self.term()?
         })

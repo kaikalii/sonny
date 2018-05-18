@@ -311,6 +311,7 @@ impl Builder {
                 )
                 .map(|(x, (y, z))| x.sub_array(&y, &z))
                 .collect(),
+            Average(..) => x.into_par_iter().map(|x| x.average()).collect(),
         }
     }
 

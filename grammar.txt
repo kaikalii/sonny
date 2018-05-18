@@ -82,6 +82,7 @@ exp_un -> - term
 	| ceil term
 	| abs term
 	| log term
+	| avg term
 	| term
 
 exp_min_max -> exp_un min exp_min_max

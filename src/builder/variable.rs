@@ -267,4 +267,11 @@ impl Variable {
             ),
         }
     }
+    pub fn average(&self) -> Variable {
+        use self::Variable::*;
+        match *self {
+            Number(..) => self.clone(),
+            Array(ref x) => Number(x.iter().fold(0.0, |sum, val| sum + val) / x.len() as f64),
+        }
+    }
 }

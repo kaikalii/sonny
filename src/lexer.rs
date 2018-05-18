@@ -15,6 +15,7 @@ static KEYWORDS: &[&'static str] = &[
     "min",
     "max",
     "log",
+    "avg",
     "end",
     "out",
     "dur",
