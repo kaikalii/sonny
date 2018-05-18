@@ -17,10 +17,10 @@ harmony: harmony_start -> harmony_loop -> harmony_loop
 example:
 
     # Put the melody though a saw generator and then add a decay
-    |melody -> gen::saw -> melody.prop -> gen::decay| ->
+    |melody.all -> |melody -> gen::saw| -> gen::decay| ->
 
     # Put the harmony though a triangle generator and then add a decay
-    |harmony -> gen::triangle -> harmony.prop -> gen::decay| ->
+    |harmony.all -> |harmony -> gen::triangle| -> gen::decay| ->
 
     # Add the two waves with the balance shift a little toward the harmony
     !1 * 0.6 + !2 * 0.4 ->

@@ -14,4 +14,4 @@ triangle: avg(2 * (abs saw - 0.5))
 # Takes a wave generated from notes, the start property
 # of the notes, and the end property of the notes.
 # Linearly decays each note's volume over its duration.
-decay: avg(!2 * (1 - (time - !1[0]) / (!1[2] + 0.0001)) max 0)
+decay: avg(!1 * (1 - (time - !2[1]) / (!2[3] + 0.0001)) max 0)

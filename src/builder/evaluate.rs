@@ -112,6 +112,12 @@ impl Builder {
                                     End => Variable::Number(note.period.end),
                                     Duration => Variable::Number(note.period.duration()),
                                     All => Variable::Array(vec![
+                                        Variable::Array(
+                                            note.pitches
+                                                .iter()
+                                                .map(|p| Variable::Number(*p))
+                                                .collect(),
+                                        ),
                                         Variable::Number(note.period.start),
                                         Variable::Number(note.period.end),
                                         Variable::Number(note.period.duration()),

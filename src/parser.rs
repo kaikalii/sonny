@@ -538,8 +538,8 @@ impl Parser {
                     } else if self.look.1 == "dur" {
                         self.mas("dur")?;
                         Ok(Operand::Property(name.clone(), Property::Duration))
-                    } else if self.look.1 == "prop" {
-                        self.mas("prop")?;
+                    } else if self.look.1 == "all" {
+                        self.mas("all")?;
                         Ok(Operand::Property(name.clone(), Property::All))
                     } else {
                         Err(Error::new(ExpectedNotesProperty(self.look.clone()))
