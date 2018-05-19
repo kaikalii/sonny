@@ -141,7 +141,7 @@ fn write(
         end = end_time;
     }
 
-    // output each outchain
+    // output the main chain
     if let Some(name) = builder.chains.iter().find(|f| f.1.play).map(|f| f.0) {
         // populate the sample array with its own indicies so because par_iter doesn't have enumerate()
         let mut song = vec![0f64; (sample_rate * (end - start_time)) as usize];
@@ -149,7 +149,10 @@ fn write(
         let mut then = Instant::now(); // Keeps track of the time when the last window iteration started
         let mut last_elapsed = VecDeque::new(); // Keeps a moving list of elapsed time values for a running average
         let start_instant = Instant::now(); // The time the evaluation started
-        for window_start in (0..(song.len() / window_size)).map(|x| x * window_size) {
+
+        // Main generation loop
+        let window_count = (song.len() as f64 / window_size as f64).ceil() as usize;
+        for window_start in (0..window_count).map(|x| x * window_size) {
             // Determine the time
             let time = window_start as f64 / sample_rate + start_time;
 
@@ -180,7 +183,13 @@ fn write(
             if time >= end {
                 break;
             }
-            let window_result = builder.evaluate_chain(&name, &[], time, window_size, sample_rate);
+            let window_result = builder.evaluate_chain(
+                &name,
+                &[],
+                time,
+                window_size.min(song.len() - window_start),
+                sample_rate,
+            );
             for (i, r) in window_result.into_iter().enumerate() {
                 song[i + window_start] = f64::from(r);
             }
