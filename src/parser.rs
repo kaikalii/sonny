@@ -590,17 +590,16 @@ impl Parser {
     }
     // Match an expression term, which consists of a term_identifier and an optional indexer
     fn term(&mut self) -> SonnyResult<Expression> {
-        let ident = self.term_identifier()?;
-        let index = self.indexer()?;
-        if let Some(indexer) = index {
+        let mut expression = Expression(Operation::Operand(self.term_identifier()?));
+        while let Some(indexer) = self.indexer()? {
             if let Some(index) = indexer.0 {
-                Ok(Expression(Operation::Index(
-                    ident,
+                expression = Expression(Operation::Index(
+                    Operand::Expression(Box::new(expression)),
                     Operand::Expression(Box::new(index)),
-                )))
+                ));
             } else {
-                Ok(Expression(Operation::SubArray(
-                    ident,
+                expression = Expression(Operation::SubArray(
+                    Operand::Expression(Box::new(expression)),
                     indexer
                         .1
                         .map(|x| Operand::Expression(Box::new(x)))
@@ -609,11 +608,10 @@ impl Parser {
                         .2
                         .map(|x| Operand::Expression(Box::new(x)))
                         .unwrap_or(Operand::Var(Variable::Number(40000.0))),
-                )))
+                ));
             }
-        } else {
-            Ok(Expression(Operation::Operand(ident)))
         }
+        Ok(expression)
     }
     // Match a unary expression
     fn exp_un(&mut self) -> SonnyResult<Expression> {
