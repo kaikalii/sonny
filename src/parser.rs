@@ -608,7 +608,7 @@ impl Parser {
                     indexer
                         .2
                         .map(|x| Operand::Expression(Box::new(x)))
-                        .unwrap_or(Operand::Var(Variable::Number(f64::MAX))),
+                        .unwrap_or(Operand::Var(Variable::Number(40000.0))),
                 )))
             }
         } else {
