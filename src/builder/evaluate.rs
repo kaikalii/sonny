@@ -4,6 +4,8 @@ use std::f64;
 
 use rayon::prelude::*;
 
+use rustfft::{num_complex::Complex, num_traits::Zero, FFTplanner};
+
 use builder::{variable::*, *};
 
 type Variables = Vec<Variable>;
@@ -343,6 +345,36 @@ impl Builder {
                 .map(|(x, (y, z))| x.sub_array(&y, &z))
                 .collect(),
             Average(..) => x.into_par_iter().map(|x| x.average()).collect(),
+            FFT(..) => {
+                let mut input: Vec<Complex<f64>> = x.iter()
+                    .map(|sample| {
+                        if let Variable::Number(s) = *sample {
+                            Complex::new(s, 0.0)
+                        } else {
+                            panic!("tried to run fft on array")
+                        }
+                    })
+                    .collect();
+                let mut output = vec![Complex::zero(); x.len()];
+                let mut planner = FFTplanner::new(false);
+                let fft = planner.plan_fft(x.len());
+                fft.process(&mut input, &mut output);
+                let fft_result = Variable::Array(vec![
+                    Variable::Array(
+                        (0..(window_size / 2))
+                            .map(|i| Variable::Number(i as f64 * sample_rate / window_size as f64))
+                            .collect(),
+                    ),
+                    Variable::Array(
+                        output
+                            .into_iter()
+                            .take(window_size / 2)
+                            .map(|x| Variable::Number((x.re.powf(2.0) + x.im.powf(2.0)).powf(0.5)))
+                            .collect(),
+                    ),
+                ]);
+                vec![fft_result.clone(); window_size]
+            }
         }
     }
 

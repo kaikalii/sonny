@@ -464,21 +464,31 @@ impl Parser {
         Ok(op)
     }
     // Match an indexer
-    fn indexer(&mut self) -> SonnyResult<(Option<Expression>, Option<Expression>)> {
+    fn indexer(
+        &mut self,
+    ) -> SonnyResult<(Option<(Option<Expression>, Option<Expression>, Option<Expression>)>)> {
         if self.look.1 == "[" {
             self.mas("[")?;
-            let start_expr = self.expression()?;
+            let mut start_expr = None;
+            if self.look.1 != ".." {
+                start_expr = Some(self.expression()?);
+            }
             if self.look.1 == ".." {
                 self.mas("..")?;
-                let end_expr = self.expression()?;
-                self.mas("]")?;
-                Ok((Some(start_expr), Some(end_expr)))
+                if self.look.1 == "]" {
+                    self.mas("]")?;
+                    Ok(Some((None, start_expr, None)))
+                } else {
+                    let end_expr = self.expression()?;
+                    self.mas("]")?;
+                    Ok(Some((None, start_expr, Some(end_expr))))
+                }
             } else {
                 self.mas("]")?;
-                Ok((Some(start_expr), None))
+                Ok(Some((start_expr, None, None)))
             }
         } else {
-            Ok((None, None))
+            Ok(None)
         }
     }
     // Match a list of expressions
@@ -582,17 +592,23 @@ impl Parser {
     fn term(&mut self) -> SonnyResult<Expression> {
         let ident = self.term_identifier()?;
         let index = self.indexer()?;
-        if let Some(start) = index.0 {
-            if let Some(end) = index.1 {
-                Ok(Expression(Operation::SubArray(
-                    ident,
-                    Operand::Expression(Box::new(start)),
-                    Operand::Expression(Box::new(end)),
-                )))
-            } else {
+        if let Some(indexer) = index {
+            if let Some(index) = indexer.0 {
                 Ok(Expression(Operation::Index(
                     ident,
-                    Operand::Expression(Box::new(start)),
+                    Operand::Expression(Box::new(index)),
+                )))
+            } else {
+                Ok(Expression(Operation::SubArray(
+                    ident,
+                    indexer
+                        .1
+                        .map(|x| Operand::Expression(Box::new(x)))
+                        .unwrap_or(Operand::Var(Variable::Number(0.0))),
+                    indexer
+                        .2
+                        .map(|x| Operand::Expression(Box::new(x)))
+                        .unwrap_or(Operand::Var(Variable::Number(f64::MAX))),
                 )))
             }
         } else {
@@ -634,6 +650,11 @@ impl Parser {
         } else if &self.look.1 == "avg" {
             self.mas("avg")?;
             Expression(Operation::Average(Operand::Expression(Box::new(
+                self.exp_un()?,
+            ))))
+        } else if &self.look.1 == "fft" {
+            self.mas("fft")?;
+            Expression(Operation::FFT(Operand::Expression(Box::new(
                 self.exp_un()?,
             ))))
         } else {

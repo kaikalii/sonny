@@ -56,6 +56,7 @@ pub enum Operation {
     Index(Operand, Operand),
     SubArray(Operand, Operand, Operand),
     Average(Operand),
+    FFT(Operand),
 }
 
 impl Operation {
@@ -63,6 +64,11 @@ impl Operation {
     pub fn operands(&self) -> (&Operand, Option<&Operand>, Option<&Operand>) {
         use self::Operation::*;
         match *self {
+            // One argument operations
+            Negate(ref a) | Sine(ref a) | Cosine(ref a) | Ceiling(ref a) | Floor(ref a)
+            | AbsoluteValue(ref a) | Logarithm(ref a) | Operand(ref a) | Average(ref a)
+            | FFT(ref a) => (a, None, None),
+            // Two argument operations
             Add(ref a, ref b)
             | Subtract(ref a, ref b)
             | Multiply(ref a, ref b)
@@ -80,10 +86,7 @@ impl Operation {
             | Or(ref a, ref b)
             | And(ref a, ref b)
             | Index(ref a, ref b) => (a, Some(b), None),
-            Negate(ref a) | Sine(ref a) | Cosine(ref a) | Ceiling(ref a) | Floor(ref a)
-            | AbsoluteValue(ref a) | Logarithm(ref a) | Operand(ref a) | Average(ref a) => {
-                (a, None, None)
-            }
+            // Three arguement operations
             Ternary(ref a, ref b, ref c) | SubArray(ref a, ref b, ref c) => (a, Some(b), Some(c)),
         }
     }
