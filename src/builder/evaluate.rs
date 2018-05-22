@@ -365,13 +365,18 @@ impl Builder {
                             .map(|i| Variable::Number(i as f64 * sample_rate / window_size as f64))
                             .collect(),
                     ),
-                    Variable::Array(
-                        output
+                    Variable::Array({
+                        let mut bins: Vec<Variable> = output
                             .into_iter()
                             .take(window_size / 2)
                             .map(|x| Variable::Number((x.re.powf(2.0) + x.im.powf(2.0)).powf(0.5)))
-                            .collect(),
-                    ),
+                            .collect();
+                        let max = bins.iter()
+                            .max_by(|a, b| a.partial_cmp(b).expect("NaN in fft"))
+                            .expect("empty fft bins")
+                            .clone();
+                        bins.into_iter().map(|x| x / max.clone()).collect()
+                    }),
                 ]);
                 vec![fft_result.clone(); window_size]
             }
