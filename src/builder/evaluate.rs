@@ -342,7 +342,7 @@ impl Builder {
                         .into_par_iter()
                         .zip(z.expect("failed to unwrap z in sub_array").into_par_iter()),
                 )
-                .map(|(x, (y, z))| x.sub_array(&y, &z))
+                .map(|(x, (y, z))| x.sub_array(y, z))
                 .collect(),
             Average(..) => x.into_par_iter().map(|x| x.average()).collect(),
             FFT(..) => {
