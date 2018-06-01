@@ -153,6 +153,7 @@ impl Lexer {
     fn put_back(&mut self) {
         self.was_put_back = true;
     }
+    #[allow(unknown_lints)]
     #[allow(cyclomatic_complexity)]
     pub fn lex(&mut self) -> Token {
         // Begin reading a token
