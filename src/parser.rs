@@ -11,6 +11,8 @@ use error::{ErrorSpec::*, *};
 use lexer::TokenType::*;
 use lexer::*;
 
+type IndexerOk = Option<(Option<Expression>, Option<Expression>, Option<Expression>)>;
+
 // Parses tokens from the Lexer and invokes the Builder accordingly
 #[derive(Debug)]
 pub struct Parser {
@@ -205,7 +207,7 @@ impl Parser {
     // Used when the desired match is a specific string.
     // This and mat() should probably be combined into a single macro.
     fn mas(&mut self, s: &str) -> SonnyResult<()> {
-        if &self.look.1 == s {
+        if self.look.1 == s {
             // println!("Expected {:?}, found {:?}", s, self.look.1.clone());
             if self.peeked {
                 self.peeked = false;
@@ -314,7 +316,7 @@ impl Parser {
         self.last_note_octave = octave as usize;
         local_offset += accidental;
         let offset = local_offset + (octave * 12) as i32;
-        16.3516f64 * 1.059463094359f64.powf(offset as f64)
+        16.3516f64 * 1.059_463_094_359_f64.powf(f64::from(offset))
     }
     // Match a pitch element
     fn pitch_element(&mut self) -> SonnyResult<f64> {
@@ -464,15 +466,14 @@ impl Parser {
         Ok(op)
     }
     // Match an indexer
-    fn indexer(
-        &mut self,
-    ) -> SonnyResult<(Option<(Option<Expression>, Option<Expression>, Option<Expression>)>)> {
+    fn indexer(&mut self) -> SonnyResult<IndexerOk> {
         if self.look.1 == "[" {
             self.mas("[")?;
-            let mut start_expr = None;
-            if self.look.1 != ".." {
-                start_expr = Some(self.expression()?);
-            }
+            let start_expr = if self.look.1 != ".." {
+                Some(self.expression()?)
+            } else {
+                None
+            };
             if self.look.1 == ".." {
                 self.mas("..")?;
                 if self.look.1 == "]" {
@@ -575,7 +576,7 @@ impl Parser {
                     self.mas("]")?;
                     Ok(list)
                 } else {
-                    return Err(Error::new(InvalidDelimeter(self.look.1.clone())).on_line(self.lexer.loc()));
+                    Err(Error::new(InvalidDelimeter(self.look.1.clone())).on_line(self.lexer.loc()))
                 }
             }
             NoteString => {
@@ -584,8 +585,8 @@ impl Parser {
                 self.mat(NoteString)?;
                 Ok(note)
             }
-            Done => return Err(Error::new(UnexpectedEndOfFile).on_line(self.lexer.loc())),
-            _ => return Err(Error::new(InvalidTerm(self.look.clone())).on_line(self.lexer.loc())),
+            Done => Err(Error::new(UnexpectedEndOfFile).on_line(self.lexer.loc())),
+            _ => Err(Error::new(InvalidTerm(self.look.clone())).on_line(self.lexer.loc())),
         }
     }
     // Match an expression term, which consists of a term_identifier and an optional indexer

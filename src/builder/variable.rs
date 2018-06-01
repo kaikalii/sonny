@@ -24,7 +24,7 @@ impl<'a> From<&'a str> for Variable {
     fn from(s: &str) -> Variable {
         Variable::Array(
             s.chars()
-                .map(|c| Variable::Number(c as u32 as f64))
+                .map(|c| Variable::Number(f64::from(u32::from(c))))
                 .collect(),
         )
     }
@@ -295,12 +295,16 @@ impl Variable {
         use self::Variable::*;
         match self {
             Number(..) => self,
-            Array(x) => Array(
-                x.into_iter()
-                    .skip(f64::from(start.clone()) as usize)
-                    .take(f64::from(end.clone() - start.clone()) as usize)
-                    .collect(),
-            ),
+            Array(x) => {
+                let start = f64::from(start);
+                let end = f64::from(end);
+                Array(
+                    x.into_iter()
+                        .skip(start as usize)
+                        .take((end - start) as usize)
+                        .collect(),
+                )
+            }
         }
     }
     pub fn average(self) -> Variable {

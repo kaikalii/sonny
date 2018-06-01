@@ -143,18 +143,17 @@ impl Lexer {
         if self.was_put_back {
             self.was_put_back = false;
             Some(self.c[0] as char)
+        } else if self.file.read_exact(&mut self.c).is_ok() {
+            self.loc.column += 1;
+            Some(self.c[0] as char)
         } else {
-            if self.file.read_exact(&mut self.c).is_ok() {
-                self.loc.column += 1;
-                Some(self.c[0] as char)
-            } else {
-                None
-            }
+            None
         }
     }
     fn put_back(&mut self) {
         self.was_put_back = true;
     }
+    #[allow(cyclomatic_complexity)]
     pub fn lex(&mut self) -> Token {
         // Begin reading a token
         while let Some(c) = self.get_char() {
@@ -174,18 +173,18 @@ impl Lexer {
                             return Token(Num, token);
                         }
                         // Check for keywords
-                        if KEYWORDS.iter().find(|&k| k == &token).is_some() {
+                        if KEYWORDS.iter().any(|&k| k == token) {
                             return Token(Keyword, token);
                         }
                         // Check for notes
                         let bytes: Vec<u8> = token.chars().map(|cc| cc as u8).collect();
                         let mut i = 0;
-                        if bytes[i] >= 'A' as u8 && bytes[i] <= 'G' as u8 {
+                        if bytes[i] >= b'A' && bytes[i] <= b'G' {
                             if bytes.len() == 1 {
                                 return Token(NoteString, token);
                             } else {
                                 i += 1;
-                                if bytes[i] == 'b' as u8 || bytes[i] == '#' as u8 {
+                                if bytes[i] == b'b' || bytes[i] == b'#' {
                                     if bytes.len() == 2 {
                                         return Token(NoteString, token);
                                     }
@@ -319,12 +318,10 @@ impl Lexer {
                                 if c == '\n' {
                                     self.loc.line += 1;
                                     self.loc.column = 0;
-                                } else {
-                                    if c == '/' {
-                                        if let Some(c) = self.get_char() {
-                                            if c == '#' {
-                                                break;
-                                            }
+                                } else if c == '/' {
+                                    if let Some(c) = self.get_char() {
+                                        if c == '#' {
+                                            break;
                                         }
                                     }
                                 }

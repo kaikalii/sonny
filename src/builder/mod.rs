@@ -363,11 +363,9 @@ impl Builder {
                         // Check if the name is valid if a name in scope ends with it,
                         // e.g. "use gen::sine" allows the user to call "gen::sine" by
                         // simply writing "sine".
-                        } else {
-                            if &name_in_scope.name.split("::").last().unwrap() == name_str {
-                                return self.chains
-                                    .get(&ChainName::Scoped(name_in_scope.name.clone()));
-                            }
+                        } else if name_in_scope.name.split("::").last().unwrap() == name_str {
+                            return self.chains
+                                .get(&ChainName::Scoped(name_in_scope.name.clone()));
                         }
                     }
                     None

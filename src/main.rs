@@ -101,7 +101,7 @@ Options:
                 Ok(mut builder) => {
                     // output sound
                     if let Err(error) = write(
-                        builder,
+                        &builder,
                         sample_rate,
                         window_size,
                         start_time,
@@ -121,7 +121,7 @@ Options:
 }
 
 fn write(
-    builder: Builder,
+    builder: &Builder,
     sample_rate: f64,
     window_size: usize,
     start_time: f64,
@@ -168,7 +168,7 @@ fn write(
             let now = Instant::now();
             let elapsed = now.duration_since(then);
             then = now;
-            let elapsed = elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1e9;
+            let elapsed = elapsed.as_secs() as f64 + f64::from(elapsed.subsec_nanos()) / 1e9;
             last_elapsed.push_back(elapsed);
             if last_elapsed.len() > 30 {
                 last_elapsed.pop_front();
@@ -203,7 +203,7 @@ fn write(
             (0..40).map(|_| '=').collect::<String>(),
             format!(
                 "{:5.2} s",
-                total_elapsed.as_secs() as f64 + total_elapsed.subsec_nanos() as f64 / 1e9
+                total_elapsed.as_secs() as f64 + f64::from(total_elapsed.subsec_nanos()) / 1e9
             ).cyan()
         );
 
@@ -225,7 +225,7 @@ fn write(
                 }
             );
             let mut writer = hound::WavWriter::create(&filename, spec).unwrap();
-            let amplitude = i16::MAX as f64;
+            let amplitude = f64::from(i16::MAX);
             for s in song {
                 writer
                     .write_sample((s * amplitude).min(amplitude) as i16)
@@ -233,10 +233,8 @@ fn write(
             }
         }
 
-        if play {
-            if open::that(&filename).is_err() {
-                return Err(Error::new(ErrorSpec::CantOpenOutputFile));
-            }
+        if play && open::that(&filename).is_err() {
+            return Err(Error::new(ErrorSpec::CantOpenOutputFile));
         }
     }
     Ok(())

@@ -205,10 +205,12 @@ impl Builder {
         sample_rate: f64,
     ) -> Variables {
         use self::Operation::*;
-        let (a, b, c) = expression.0.operands();
-        let x = self.evaluate_operand(a, name, args, time, window_size, sample_rate);
-        let y = b.map(|b| self.evaluate_operand(b, name, args, time, window_size, sample_rate));
-        let z = c.map(|c| self.evaluate_operand(c, name, args, time, window_size, sample_rate));
+        let ops = expression.0.operands();
+        let x = self.evaluate_operand(ops.0, name, args, time, window_size, sample_rate);
+        let y = ops.1
+            .map(|op| self.evaluate_operand(op, name, args, time, window_size, sample_rate));
+        let z = ops.2
+            .map(|op| self.evaluate_operand(op, name, args, time, window_size, sample_rate));
         match expression.0 {
             Add(..) => x.into_par_iter()
                 .zip(y.expect("failed to unwrap y in add").into_par_iter())
@@ -434,7 +436,7 @@ impl Builder {
                                 .map(|n| {
                                     n.pitches.into_iter().map(|p| Variable::Number(p)).collect()
                                 })
-                                .unwrap_or(Vec::new()),
+                                .unwrap_or_else(Vec::new),
                         )
                     })
                     .collect(),

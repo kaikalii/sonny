@@ -61,11 +61,7 @@ impl Error {
         match self.spec {
             FileNotFound(ref filename) => println!("Unable to find file: '{}'.", filename),
             ExpectedFound(ref expected, ref found) => {
-                if expected.is_left() {
-                    println!("Expected {}, found {}.", expected, found)
-                } else {
-                    println!("Expected {}, found {}.", expected, found)
-                }
+                println!("Expected {}, found {}.", expected, found)
             }
             CloseDelimeter(ref found) => println!("Invalid close delimeter: {}.", found),
             InvalidDelimeter(ref found) => {
