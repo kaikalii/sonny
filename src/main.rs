@@ -29,6 +29,7 @@ fn main() {
     args.next();
     let mut sample_rate = 32000.0;
     let mut window_size = 4000;
+    let mut buffer_size = 10;
     let mut file_name = None;
     let mut start_time = 0f64;
     let mut end_time = None;
@@ -49,6 +50,14 @@ fn main() {
                     window_size = w;
                 } else {
                     println!("Invalid window size.");
+                    return;
+                }
+            },
+            "-b" | "--buffer" => if let Some(ref b_str) = args.next() {
+                if let Ok(b) = b_str.parse() {
+                    buffer_size = b;
+                } else {
+                    println!("Invalid buffer size.");
                     return;
                 }
             },
@@ -81,6 +90,8 @@ Options:
                             in samples/second (default is 32000)
     -w | --window           Set the size of the processing window
                             (default is 4000)
+    -b | --buffer           Set the size of the buffer before the
+                            window (default is 10)
     -s | --start            Set the start time of the output file
     -e | --end              Set the end time of the output file
     -p | --play             Plays the output file after it is
@@ -104,6 +115,7 @@ Options:
                         &builder,
                         sample_rate,
                         window_size,
+                        buffer_size,
                         start_time,
                         end_time,
                         play,
@@ -124,6 +136,7 @@ fn write(
     builder: &Builder,
     sample_rate: f64,
     window_size: usize,
+    buffer_size: usize,
     start_time: f64,
     end_time: Option<f64>,
     play: bool,
@@ -153,6 +166,9 @@ fn write(
         // Main generation loop
         let window_count = (song.len() as f64 / window_size as f64).ceil() as usize;
         for window_start in (0..window_count).map(|x| x * window_size) {
+            // Determine the buffer size and adjusted window start
+            let this_buffer_size = if window_start == 0 { 0 } else { buffer_size };
+            let window_start = window_start - this_buffer_size;
             // Determine the time
             let time = window_start as f64 / sample_rate + start_time;
 
@@ -173,7 +189,7 @@ fn write(
             if last_elapsed.len() > 30 {
                 last_elapsed.pop_front();
             }
-            let rate = (window_size as f64 / sample_rate)
+            let rate = ((window_size + this_buffer_size) as f64 / sample_rate)
                 / (last_elapsed.iter().sum::<f64>() / last_elapsed.len() as f64);
             let eta = (end - time) / rate;
             print!("eta: {}", format!("{:.2}s", eta).cyan());
@@ -188,9 +204,10 @@ fn write(
                 &[],
                 time,
                 window_size.min(song.len() - window_start),
+                this_buffer_size,
                 sample_rate,
             );
-            for (i, r) in window_result.into_iter().enumerate() {
+            for (i, r) in window_result.into_iter().skip(this_buffer_size).enumerate() {
                 song[i + window_start] = f64::from(r);
             }
         }

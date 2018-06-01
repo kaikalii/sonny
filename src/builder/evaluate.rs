@@ -87,17 +87,20 @@ impl Builder {
         args: &[&Variables],
         time: f64,
         window_size: usize,
+        buffer_size: usize,
         sample_rate: f64,
     ) -> Variables {
         use Operand::*;
         match *operand {
             // for Nums, simply return the num
-            Var(ref x) => vec![x.clone(); window_size],
+            Var(ref x) => vec![x.clone(); buffer_size + window_size],
             // for Ids, call the associated function
-            Id(ref id) => self.evaluate_chain(id, args, time, window_size, sample_rate),
+            Id(ref id) => {
+                self.evaluate_chain(id, args, time, window_size, buffer_size, sample_rate)
+            }
             // for Notes Properties...
             Properties(ref id) => if let Some(chain) = self.find_chain(id) {
-                (0..window_size)
+                (0..(buffer_size + window_size))
                     .collect::<Vec<usize>>()
                     .into_par_iter()
                     .map(|i| time + i as f64 / sample_rate)
@@ -129,21 +132,27 @@ impl Builder {
                 panic!("Unknown id {:?}", id)
             },
             // For time, simply return the time
-            Time => (0..window_size)
+            Time => (0..(buffer_size + window_size))
                 .collect::<Vec<usize>>()
                 .into_par_iter()
                 .map(|i| Variable::Number(time + i as f64 / sample_rate))
                 .collect(),
             // For window size, simply return the window size
-            WindowSize => vec![Variable::Number(window_size as f64); window_size],
+            WindowSize => vec![Variable::Number(window_size as f64); buffer_size + window_size],
+            // For buffer size, simply return the buffer size
+            BufferSize => vec![Variable::Number(buffer_size as f64); buffer_size + window_size],
             // For sample rate, simply return the sample rate
-            SampleRate => vec![Variable::Number(sample_rate as f64); window_size],
+            SampleRate => vec![Variable::Number(sample_rate as f64); buffer_size + window_size],
+            // For window index, simpe return a sequential array up to the window size
+            WindowIndex => (0..(buffer_size + window_size))
+                .map(|x| Variable::Number(f64::from(x as u32)))
+                .collect(),
             // For Backlinks, reference the arguments passed
             BackLink(num) => args[num - 1].clone(),
             // It's technically not possible to have notes here, since
             // all notes operands are removed when a chain is finalized.
             // Just make sure. You never know. This might change.
-            Notes(ref notes) => (0..window_size)
+            Notes(ref notes) => (0..(buffer_size + window_size))
                 .collect::<Vec<usize>>()
                 .into_par_iter()
                 .map(|i| time + i as f64 / sample_rate)
@@ -159,9 +168,15 @@ impl Builder {
                 })
                 .collect(),
             // Evaluate expressions
-            Expression(ref expression) => {
-                self.evaluate_expression(expression, name, args, time, window_size, sample_rate)
-            }
+            Expression(ref expression) => self.evaluate_expression(
+                expression,
+                name,
+                args,
+                time,
+                window_size,
+                buffer_size,
+                sample_rate,
+            ),
             // Evaluate an array
             Array(ref expressions) => {
                 let uncollated: Vec<Variables> = expressions
@@ -173,6 +188,7 @@ impl Builder {
                             args,
                             time,
                             window_size,
+                            buffer_size,
                             sample_rate,
                         )
                     })
@@ -180,7 +196,7 @@ impl Builder {
                 let mut result =
                     vec![
                         Variable::Array(vec![Variable::Number(0.0); expressions.len()]);
-                        window_size
+                        buffer_size + window_size
                     ];
                 for (i, vars) in uncollated.into_iter().enumerate() {
                     for (j, var) in vars.into_iter().enumerate() {
@@ -202,15 +218,29 @@ impl Builder {
         args: &[&Variables],
         time: f64,
         window_size: usize,
+        buffer_size: usize,
         sample_rate: f64,
     ) -> Variables {
+        // Evaluate Operands
         use self::Operation::*;
         let ops = expression.0.operands();
-        let x = self.evaluate_operand(ops.0, name, args, time, window_size, sample_rate);
-        let y = ops.1
-            .map(|op| self.evaluate_operand(op, name, args, time, window_size, sample_rate));
-        let z = ops.2
-            .map(|op| self.evaluate_operand(op, name, args, time, window_size, sample_rate));
+        let x = self.evaluate_operand(
+            ops.0,
+            name,
+            args,
+            time,
+            window_size,
+            buffer_size,
+            sample_rate,
+        );
+        let y = ops.1.map(|op| {
+            self.evaluate_operand(op, name, args, time, window_size, buffer_size, sample_rate)
+        });
+        let z = ops.2.map(|op| {
+            self.evaluate_operand(op, name, args, time, window_size, buffer_size, sample_rate)
+        });
+
+        // Evaluate Operation
         match expression.0 {
             Add(..) => x.into_par_iter()
                 .zip(y.expect("failed to unwrap y in add").into_par_iter())
@@ -363,14 +393,18 @@ impl Builder {
                 fft.process(&mut input, &mut output);
                 let fft_result = Variable::Array(vec![
                     Variable::Array(
-                        (0..(window_size / 2))
-                            .map(|i| Variable::Number(i as f64 * sample_rate / window_size as f64))
+                        (0..((buffer_size + window_size) / 2))
+                            .map(|i| {
+                                Variable::Number(
+                                    i as f64 * sample_rate / (buffer_size + window_size) as f64,
+                                )
+                            })
                             .collect(),
                     ),
                     Variable::Array({
                         let mut bins: Vec<Variable> = output
                             .into_iter()
-                            .take(window_size / 2)
+                            .take((buffer_size + window_size) / 2)
                             .map(|x| Variable::Number((x.re.powf(2.0) + x.im.powf(2.0)).powf(0.5)))
                             .collect();
                         let max = bins.iter()
@@ -380,8 +414,9 @@ impl Builder {
                         bins.into_iter().map(|x| x / max.clone()).collect()
                     }),
                 ]);
-                vec![fft_result.clone(); window_size]
+                vec![fft_result.clone(); buffer_size + window_size]
             }
+            Window(..) => vec![Variable::Array(x.clone()); buffer_size + window_size],
         }
     }
 
@@ -392,6 +427,7 @@ impl Builder {
         args: &[&Variables],
         time: f64,
         window_size: usize,
+        buffer_size: usize,
         sample_rate: f64,
     ) -> Variables {
         if let Some(chain) = self.find_chain(name) {
@@ -414,6 +450,7 @@ impl Builder {
                                 &these_args,
                                 time,
                                 window_size,
+                                buffer_size,
                                 sample_rate,
                             ));
                         }
@@ -424,7 +461,7 @@ impl Builder {
                         .last()
                         .expect("generic chain gave no last result")
                 }
-                ChainLinks::OnlyNotes(..) => (0..window_size)
+                ChainLinks::OnlyNotes(..) => (0..(buffer_size + window_size))
                     .collect::<Vec<usize>>()
                     .into_par_iter()
                     .map(|i| time + i as f64 / sample_rate)

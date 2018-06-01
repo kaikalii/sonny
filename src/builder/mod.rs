@@ -19,7 +19,9 @@ pub enum Operand {
     BackLink(usize),
     Time,
     WindowSize,
+    BufferSize,
     SampleRate,
+    WindowIndex,
     Notes(Vec<Note>),
     Expression(Box<Expression>),
     Array(Vec<Expression>),
@@ -57,6 +59,7 @@ pub enum Operation {
     SubArray(Operand, Operand, Operand),
     Average(Operand),
     FFT(Operand),
+    Window(Operand),
 }
 
 impl Operation {
@@ -67,7 +70,7 @@ impl Operation {
             // One argument operations
             Negate(ref a) | Sine(ref a) | Cosine(ref a) | Ceiling(ref a) | Floor(ref a)
             | AbsoluteValue(ref a) | Logarithm(ref a) | Operand(ref a) | Average(ref a)
-            | FFT(ref a) => (a, None, None),
+            | FFT(ref a) | Window(ref a) => (a, None, None),
             // Two argument operations
             Add(ref a, ref b)
             | Subtract(ref a, ref b)

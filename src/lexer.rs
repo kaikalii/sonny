@@ -29,7 +29,10 @@ static KEYWORDS: &[&'static str] = &[
     "use",
     "fft",
     "window_size",
+    "buffer_size",
     "sample_rate",
+    "wi",
+    "window",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]

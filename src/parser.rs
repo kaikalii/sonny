@@ -520,7 +520,9 @@ impl Parser {
                 let op = match self.look.1.as_str() {
                     "time" => Operand::Time,
                     "window_size" => Operand::WindowSize,
+                    "buffer_size" => Operand::BufferSize,
                     "sample_rate" => Operand::SampleRate,
+                    "wi" => Operand::WindowIndex,
                     _ => return Err(Error::new(InvalidKeyword(self.look.1.clone())).on_line(self.lexer.loc())),
                 };
                 self.mat(Keyword)?;
@@ -654,6 +656,11 @@ impl Parser {
         } else if &self.look.1 == "fft" {
             self.mas("fft")?;
             Expression(Operation::FFT(Operand::Expression(Box::new(
+                self.exp_un()?,
+            ))))
+        } else if &self.look.1 == "window" {
+            self.mas("window")?;
+            Expression(Operation::Window(Operand::Expression(Box::new(
                 self.exp_un()?,
             ))))
         } else {
