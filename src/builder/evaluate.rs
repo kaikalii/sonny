@@ -232,6 +232,8 @@ impl Builder {
         // Evaluate Operands
         use self::Operation::*;
         let ops = expression.0.operands();
+
+        // Evaluate first operand
         let x = self.evaluate_operand(
             ops.0,
             name,
@@ -241,7 +243,29 @@ impl Builder {
             buffer_size,
             sample_rate,
         )?;
-        let y = if let Some(op) = ops.1 {
+
+        // For ternary operator, if the predicate window is all true
+        // or all false, only evaluate one body expression
+        let dont_eval = if let Ternary(..) = expression.0 {
+            let any_false = x.iter().any(|x| *x == Variable::Number(0.0));
+            let any_true = x.iter().any(|x| *x != Variable::Number(0.0));
+            if any_false {
+                if any_true {
+                    None
+                } else {
+                    Some(b'y')
+                }
+            } else {
+                Some(b'z')
+            }
+        } else {
+            None
+        };
+
+        // Evaluate second operand
+        let y = if let Some(b'y') = dont_eval {
+            None
+        } else if let Some(op) = ops.1 {
             Some(self.evaluate_operand(
                 op,
                 name,
@@ -254,7 +278,11 @@ impl Builder {
         } else {
             None
         };
-        let z = if let Some(op) = ops.2 {
+
+        // Evaluate third operand
+        let z = if let Some(b'z') = dont_eval {
+            None
+        } else if let Some(op) = ops.2 {
             Some(self.evaluate_operand(
                 op,
                 name,
@@ -387,11 +415,18 @@ impl Builder {
             AbsoluteValue(..) => x.into_par_iter().map(|x| x.abs()).collect(),
             Logarithm(..) => x.into_par_iter().map(|x| x.ln()).collect(),
             Operand(..) => x,
-            Ternary(..) => x.into_par_iter()
-                .zip(y.expect("failed to unwrap y in ternay").into_par_iter())
-                .zip(z.expect("failed to unwrap z in ternay").into_par_iter())
-                .map(|((x, y), z)| if x != Variable::Number(0.0) { y } else { z })
-                .collect(),
+            Ternary(..) => match dont_eval {
+                None => x.into_par_iter()
+                    .zip(y.expect("failed to unwrap y in ternay").into_par_iter())
+                    .zip(z.expect("failed to unwrap z in ternay").into_par_iter())
+                    .map(|((x, y), z)| if x != Variable::Number(0.0) { y } else { z })
+                    .collect(),
+                Some(b) => match b {
+                    b'y' => z.expect("failed to unwrap z in ternay"),
+                    b'z' => y.expect("failed to unwrap y in ternay"),
+                    _ => unreachable!(),
+                },
+            },
             Index(..) => x.into_par_iter()
                 .zip(y.expect("failed to unwrap y in index").into_par_iter())
                 .map(|(x, y)| x[y].clone())
