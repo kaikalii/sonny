@@ -158,16 +158,20 @@ A4
 A4 -&gt; gen::sine
 </code></pre>
 <p>The <code>-&gt;</code> operator denotes that we are passing the A4 to the sine generator so that it knows what frequency to use.</p>
-<p>We are almost done. All that is left to do is tell Sonny that we want it to play the tone. We do that by add another <code>-&gt;</code> and the word <code>out</code>.</p>
+<p>Now, we have to tell Sonny that we want it to play the tone. We do that by add another <code>-&gt;</code> and the word <code>out</code>.</p>
 <pre><code>std gen
 
 A4 -&gt; gen::sine -&gt; out
+</code></pre>
+<p>The last step is to give this output a name. Let's just name it <code>output</code>.</p>
+<pre><code>std gen
+
+output: A4 -&gt; gen::sine -&gt; out
 </code></pre>
 <p>That's it! Save your file, and from the terminal, navigate to its folder. Run the command:</p>
 <pre><code>sonny tutorial.son --play
 </code></pre>
 <p>After a brief moment, you computer's default audio player should pop up and play the tone for one second. Make sure your sound is on, or you might miss it.</p>
-<p>You may have noticed that the sound file is called <code>anonXXXX.wav</code>. This is because we did not name our line with the tone. Go back to your <code>tutorial.son</code> file and add a name.</p>
 <pre><code>std gen
 
 output: A4 -&gt; gen::sine -&gt; out
@@ -177,7 +181,7 @@ output: A4 -&gt; gen::sine -&gt; out
 
 output: A4 -&gt; gen::sine -&gt; out: 5
 </code></pre>
-<p>If you run <code>sonny tutorial.son --play</code> again, this time the tone should last for 5 seconds, and the generated file should be named <code>output.wav</code>.</p>
+<p>If you run <code>sonny tutorial.son --play</code> again, this time the tone should last for 5 seconds.</p>
 <p>That's all there is to it. Next, we'll discuss how to program in <a href="https://github.com/kaikalii/sonny/wiki/Notes">notes</a> so that we can make sounds that are a little more interesting.</p>
 <a class="header" href="print.html#notes" id="notes"><h1>Notes</h1></a>
 <p>Generating a tone is all well and good, but if you want to actually make a song, you will probably want to write notes. Notes are notated with both a <strong>frequency</strong> and a <strong>duration</strong>.</p>
@@ -252,19 +256,20 @@ output: A4 -&gt; gen::sine -&gt; out: 5
 </code></pre>
 <p>The word before the semicolon denotes the name of the chain, and the <code>-&gt;</code> operator separates links in the chain. The <code>out</code> keyword is special and is not actually considered a link. <code>gen::sine</code> is actually a chain itself, but we use the chain's name as an alias for the chain itself.</p>
 <p>To learn to construct our own chains, let's implement our own version of <code>gen::sine</code>. First, we have to know how a sine wave is generated. To generate a sine wave with some frequency, we use the equation:</p>
-<p>s<sub>t</sub> = sin(2 * π * t * f)</p>
+<p>s<sub>t</sub> = sin(2πtf)</p>
 <p>In this equation, <strong>s<sub>t</sub></strong> is the amplitude of the sample at time <strong>t</strong>, <strong>t</strong> is the time, and <strong>f</strong> is the frequency of the wave.</p>
 <p>We can make a very simple Sonny program that uses this equation to generate a 440 Hz tone.</p>
 <pre><code>my_sine: sin(2 * pi * time * 440) -&gt; out: 5
 </code></pre>
-<p>There are a few things to note here. <code>sin</code> is a built-in unary operator in Sonny, and has the same precedence <code>-</code>(negate). <code>pi</code> and <code>time</code> are built-in constants. As the Sonny compiler iterates through every sample in the audio buffer, <code>time</code> evaluates to the time at that sample, which is based on the sample rate being used.</p>
-<p>The program above will generate a 440 Hz tone just fine. However, it's not very reusable. Anyone using the my_sine chain would have to know exactly what number to change if they want to change the frequency.</p>
-<p>If we look again at the first example program, we can see that the <code>gen::sine</code> link is preceded by the <code>A4</code> frequency. <code>gen::sine</code> uses this number when calculating the wave. To let out equation link reference the values of previous links, we use something called a <strong>backlink</strong>. Backlinks are denoted by a <code>!</code> followed by a positive integer. The backlink <code>!n</code> refers to the link that is that is n links before the link in which the backlink is.</p>
-<p>To make our sine chain more generic and reusable, we can replace the <code>440</code> frequency number with the a backlink reference to the previous link.</p>
+<p>There are a few things to note here. <code>sin</code> is a built-in unary operator in Sonny, and has the same precedence as <code>-</code>(negate). <code>pi</code> and <code>time</code> are built-in constants. As the Sonny compiler iterates through every sample in the audio buffer, <code>time</code> evaluates to the time at that sample, which is based on the sample rate being used and the index of the sample.</p>
+<p>The program above will generate a 440 Hz tone just fine. However, it's not very reusable. Anyone using the <code>my_sine</code> chain would have to know exactly what number to change if they want to change the frequency.</p>
+<p>If we look again at the first example program, we can see that the <code>gen::sine</code> link is preceded by the <code>A4</code> frequency. <code>gen::sine</code> uses this number when calculating the wave. To let out equation link reference the values of previous links, we use something called a <strong>backlink</strong>. Backlinks are denoted by a <code>!</code> followed by a positive integer. The backlink <code>!n</code> refers to the link that is that is <code>n</code> links before the link in which the backlink is.</p>
+<p>To make our sine chain more generic and reusable, we can replace the <code>440</code> frequency number with a backlink reference to the previous link.</p>
 <pre><code>my_sine: sin(2 * pi * time * !1) -&gt; out: 5
 </code></pre>
 <p>Now, the link with the generator equation knows to use the result of the link that is fed into it. Because of this, attempting to compile this chain will result in an error.</p>
-<pre><code>TODO: put the error message here
+<pre><code>Error in test.son on line 1:32
+Backlink &quot;!1&quot; in chain: 'test::my_sine' expects at least 1 previous link, but none were found.
 </code></pre>
 <p>We can fix this by actually feeding the link a frequency value.</p>
 <pre><code>my_sine: A4 -&gt; sin(2 * pi * time * !1) -&gt; out: 5
@@ -275,7 +280,7 @@ output: A4 -&gt; gen::sine -&gt; out: 5
 output: A4 -&gt; my_sine -&gt; out: 5
 </code></pre>
 <p>This program will compile and will generate our nice 5 second A4 tone. Hooray!</p>
-<p>Backlinks are to Sonny what function arguments are to other languages. However, they have an interesting property that makes them unique. In most programming languages, if a function <code>f</code> takes a single argument can calls function <code>g</code> which takes three arguments, <code>f</code> still takes only one argument. In Sonny, the chains called from within a chain <em>can change the number of arguments of the caller</em>. Let's look at an example of this.</p>
+<p>Backlinks are to Sonny what function arguments are to other languages. However, they have an interesting property that makes them unique. In most programming languages, if a function <code>f</code> takes a single argument and calls function <code>g</code> which takes three arguments, <code>f</code> still takes only one argument. In Sonny, the chains called from within a chain <em>can change the number of arguments of the caller</em>. Let's look at an example of this.</p>
 <pre><code>f: !1 + 1
 g: !1 + !2 + !3
 </code></pre>
@@ -283,7 +288,7 @@ g: !1 + !2 + !3
 <p>As it is, <code>f</code> only requires a single link before it. In the anonymous chain below, <code>f</code> will only look at <code>4</code> and ignore <code>1</code> and <code>2</code>. It will return <code>5</code>.</p>
 <pre><code>1 -&gt; 2 -&gt; 4 -&gt; f
 </code></pre>
-<p>However, if we change f to call <code>g</code>...</p>
+<p>However, if we change <code>f</code> to call <code>g</code>...</p>
 <pre><code>g: !1 + !2 + !3
 f: !1 + g
 </code></pre>
@@ -296,7 +301,7 @@ f1: !1 + g
 f2: !1 + !1 + !2 + !3
 </code></pre>
 <p>Keep in mind that substituting a chain's body for its call only works if the chain has only a single link, like <code>g</code> does above.</p>
-<p>How much a called chain extends the lookback of its caller depends on form which link in the caller it is called. Consider the following chains.</p>
+<p>How much a called chain extends the lookback of its caller depends on from which link in the caller it is called. Consider the following chains:</p>
 <pre><code>a: !1 + !2 + !3
 b: !1 -&gt; !1 -&gt; !1
 </code></pre>
@@ -308,12 +313,12 @@ b: !1 -&gt; !1 -&gt; !1
 b: a -&gt; !1 -&gt; !1
 c: 1 -&gt; 2 -&gt; 3 -&gt; b
 </code></pre>
-<p>In the program above, <code>a</code> is called from the first link in <code>b</code>, so <code>b</code> now looks at the values passed to it from the three previous links in 'c'. <code>c</code> evaluates to <code>6</code>.</p>
+<p>In the program above, <code>a</code> is called from the first link in <code>b</code>, so <code>b</code> now looks at the values passed to it from the three previous links in <code>c</code>. <code>c</code> evaluates to <code>6</code>.</p>
 <pre><code>a: !1 + !2 + !3
 b: !1 -&gt; a -&gt; !1
 c: 1 -&gt; 2 -&gt; 3 -&gt; b
 </code></pre>
-<p>In the program above, <code>a</code> is called from the second link in <code>b</code>, so <code>b</code> now looks at the values passed to it from the two previous links in 'c'. <code>1</code> is ignored, and <code>c</code> evaluates to <code>8</code>. Understanding why this is can be a bit complicated. The steps are as follows:</p>
+<p>In the program above, <code>a</code> is called from the second link in <code>b</code>, so <code>b</code> now looks at the values passed to it from the two previous links in <code>c</code>. <code>1</code> is ignored, and <code>c</code> evaluates to <code>8</code>. Understanding why this is can be a bit complicated. The steps are as follows:</p>
 <ul>
 <li>The <code>!1</code> in in the first link of <code>b</code> becomes the <code>3</code> that it sees from the previous link in <code>c</code>.</li>
 <li>The <code>!1</code> in <code>b</code>'s call to <code>a</code> becomes the <code>3</code> that it sees from the previous link in <code>b</code>.</li>
@@ -327,39 +332,39 @@ c: 1 -&gt; 2 -&gt; 3 -&gt; b
 b: !1 -&gt; !1 -&gt; a
 c: 1 -&gt; 2 -&gt; 3 -&gt; b
 </code></pre>
-<p>In the program above, <code>a</code> is called from the third link in <code>b</code>, so <code>b</code> now looks at the values passed to it from only the previous link in 'c'. <code>1</code> and <code>2</code> are ignored, and <code>c</code> evaluates to <code>9</code>. You can try to figure our why on your own. If you are having trouble understanding how chain calls and backlinks work, the next section introduces a concept which may make it easier.</p>
+<p>In the program above, <code>a</code> is called from the third link in <code>b</code>, so <code>b</code> now looks at the values passed to it from only the previous link in <code>c</code>. <code>1</code> and <code>2</code> are ignored, and <code>c</code> evaluates to <code>9</code>. You can try to figure our why on your own. If you are having trouble understanding how chain calls and backlinks work, the next section introduces a concept which may make it easier.</p>
 <a class="header" href="print.html#subchains" id="subchains"><h1>Subchains</h1></a>
 <p>Let's say we want to add together two sine waves of different frequencies. We can make a simple adder like this:</p>
 <pre><code>5 -&gt; 7 -&gt; (!1 + !2)
 </code></pre>
-<p>The above chain evaluates to 12.</p>
+<p>The above chain evaluates to <code>12</code>.</p>
 <p>We can then replace the <code>5</code> and <code>7</code> with sine wave generators of different frequencies and make the chain output.</p>
 <pre><code>std gen
 
-output: A4 -&gt; gen::sine -&gt; C#4 -&gt; gen::sine -&gt; (!1 + !2) -&gt; out: 5
+output: A4 -&gt; gen::sine -&gt; C#5 -&gt; gen::sine -&gt; (!1 + !2) -&gt; out: 5
 </code></pre>
-<p>Simply replacing the numbers may same like it will work, and this code will compile. However, it will not generate the expected output because we have introduced some ambiguity. The <code>(!1 + !2)</code> link is not adding the outputs of the sine generator links. <code>!1</code> becomes the generated <code>C#4</code> wave like it should, but <code>!2</code> becomes the frequency value of <code>C#4</code> which is roughly <code>277.183</code>. Adding this number to every sample from the generated <code>C#4</code> wave will cause every sample to be somewhere in the range of <code>277.183 +- 1</code>. When finally evaluated, sample values greater than <code>1</code> become <code>1</code> and those less than <code>-1</code> become <code>-1</code>, so the program above will generate an audio buffer of all <code>1</code>'s, which has no oscillation and is thus silent.</p>
+<p>Simply replacing the numbers may seem like it will work, and this code will compile. However, it will not generate the expected output because we have introduced some ambiguity. The <code>(!1 + !2)</code> link is not adding the outputs of the sine generator links. <code>!1</code> becomes the generated <code>C#5</code> wave like it should, but <code>!2</code> becomes the frequency value of <code>C#5</code> which is roughly <code>277.183</code>. Adding this number to every sample from the generated <code>C#5</code> wave will cause every sample to be somewhere in the range of <code>277.183 +- 1</code>. When finally evaluated, sample values greater than <code>1</code> become <code>1</code> and those less than <code>-1</code> become <code>-1</code>, so the program above will generate an audio buffer of all <code>1</code>'s, which has no oscillation and is thus silent.</p>
 <p>To remove this ambiguity, we enclose the wave-generating links in a <strong>subchain</strong> by using subchain delimeters <code>| |</code>.</p>
 <pre><code>std gen
 
-output: |A4 -&gt; gen::sine| -&gt; |C#4 -&gt; gen::sine| -&gt; (!1 + !2) -&gt; out: 5
+output: |A4 -&gt; gen::sine| -&gt; |C#5 -&gt; gen::sine| -&gt; (!1 + !2) -&gt; out: 5
 </code></pre>
 <p>To make this more readable, you can put each section on a new line if you like.</p>
 <pre><code>std gen
 
 output:
     |A4 -&gt; gen::sine| -&gt;
-    |C#4 -&gt; gen::sine| -&gt;
+    |C#5 -&gt; gen::sine| -&gt;
     (!1 + !2) -&gt;
     out: 5
 </code></pre>
-<p>We have now specified that <code>A4 -&gt; gen::sine</code> and <code>C#4 -&gt; gen::sine</code> are in their own chains, so they are treated by everything outside the subchain delimeters as a chain call rather than a sequence of links. <code>!1</code> becomes the generated <code>C#4</code> wave, like it did before, but <code>!2</code> now becomes the generated <code>A4</code> wave.</p>
-<p>We are almost done adding the waves. If we compile the above program as is, the two wave will constructively interfere in certain places, creating samples with an amplitude greater than <code>1</code> or less than <code>-1</code>. Because we are adding waves, we have to normalize the sum by dividing by the number of waves we are adding.</p>
+<p>We have now specified that <code>A4 -&gt; gen::sine</code> and <code>C#5 -&gt; gen::sine</code> are in their own chains, so they are treated by everything outside the subchain delimeters as a chain call rather than a sequence of links. <code>!1</code> becomes the generated <code>C#5</code> wave, like it did before, but <code>!2</code> now becomes the generated <code>A4</code> wave.</p>
+<p>We are almost done adding the waves. If we compile the above program as is, the two waves will constructively interfere in certain places, creating samples with an amplitude greater than <code>1</code> or less than <code>-1</code>. Because we are adding waves, we have to normalize the sum by dividing by the number of waves we are adding.</p>
 <pre><code>std gen
 
 output:
     |A4 -&gt; gen::sine| -&gt;
-    |C#4 -&gt; gen::sine| -&gt;
+    |C#5 -&gt; gen::sine| -&gt;
     (!1 + !2) / 2 -&gt;
     out: 5
 </code></pre>

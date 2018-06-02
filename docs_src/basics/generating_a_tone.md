@@ -32,7 +32,7 @@ A4 -> gen::sine
 
 The `->` operator denotes that we are passing the A4 to the sine generator so that it knows what frequency to use.
 
-We are almost done. All that is left to do is tell Sonny that we want it to play the tone. We do that by add another `->` and the word `out`.
+Now, we have to tell Sonny that we want it to play the tone. We do that by add another `->` and the word `out`.
 
 ```
 std gen
@@ -40,13 +40,19 @@ std gen
 A4 -> gen::sine -> out
 ```
 
+The last step is to give this output a name. Let's just name it `output`.
+
+```
+std gen
+
+output: A4 -> gen::sine -> out
+```
+
 That's it! Save your file, and from the terminal, navigate to its folder. Run the command:
 ```
 sonny tutorial.son --play
 ```
 After a brief moment, you computer's default audio player should pop up and play the tone for one second. Make sure your sound is on, or you might miss it.
-
-You may have noticed that the sound file is called `anonXXXX.wav`. This is because we did not name our line with the tone. Go back to your `tutorial.son` file and add a name.
 
 ```
 std gen
@@ -62,6 +68,6 @@ std gen
 output: A4 -> gen::sine -> out: 5
 ```
 
-If you run `sonny tutorial.son --play` again, this time the tone should last for 5 seconds, and the generated file should be named `output.wav`.
+If you run `sonny tutorial.son --play` again, this time the tone should last for 5 seconds.
 
 That's all there is to it. Next, we'll discuss how to program in [notes](https://github.com/kaikalii/sonny/wiki/Notes) so that we can make sounds that are a little more interesting.

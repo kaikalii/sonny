@@ -12,7 +12,7 @@ The word before the semicolon denotes the name of the chain, and the `->` operat
 
 To learn to construct our own chains, let's implement our own version of `gen::sine`. First, we have to know how a sine wave is generated. To generate a sine wave with some frequency, we use the equation:
 
-s<sub>t</sub> = sin(2 * π * t * f)
+s<sub>t</sub> = sin(2πtf)
 
 In this equation, **s<sub>t</sub>** is the amplitude of the sample at time **t**, **t** is the time, and **f** is the frequency of the wave.
 
@@ -22,13 +22,13 @@ We can make a very simple Sonny program that uses this equation to generate a 44
 my_sine: sin(2 * pi * time * 440) -> out: 5
 ```
 
-There are a few things to note here. `sin` is a built-in unary operator in Sonny, and has the same precedence `-`(negate). `pi` and `time` are built-in constants. As the Sonny compiler iterates through every sample in the audio buffer, `time` evaluates to the time at that sample, which is based on the sample rate being used.
+There are a few things to note here. `sin` is a built-in unary operator in Sonny, and has the same precedence as `-`(negate). `pi` and `time` are built-in constants. As the Sonny compiler iterates through every sample in the audio buffer, `time` evaluates to the time at that sample, which is based on the sample rate being used and the index of the sample.
 
-The program above will generate a 440 Hz tone just fine. However, it's not very reusable. Anyone using the my_sine chain would have to know exactly what number to change if they want to change the frequency.
+The program above will generate a 440 Hz tone just fine. However, it's not very reusable. Anyone using the `my_sine` chain would have to know exactly what number to change if they want to change the frequency.
 
-If we look again at the first example program, we can see that the `gen::sine` link is preceded by the `A4` frequency. `gen::sine` uses this number when calculating the wave. To let out equation link reference the values of previous links, we use something called a **backlink**. Backlinks are denoted by a `!` followed by a positive integer. The backlink `!n` refers to the link that is that is n links before the link in which the backlink is.
+If we look again at the first example program, we can see that the `gen::sine` link is preceded by the `A4` frequency. `gen::sine` uses this number when calculating the wave. To let out equation link reference the values of previous links, we use something called a **backlink**. Backlinks are denoted by a `!` followed by a positive integer. The backlink `!n` refers to the link that is that is `n` links before the link in which the backlink is.
 
-To make our sine chain more generic and reusable, we can replace the `440` frequency number with the a backlink reference to the previous link.
+To make our sine chain more generic and reusable, we can replace the `440` frequency number with a backlink reference to the previous link.
 
 ```
 my_sine: sin(2 * pi * time * !1) -> out: 5
@@ -37,7 +37,8 @@ my_sine: sin(2 * pi * time * !1) -> out: 5
 Now, the link with the generator equation knows to use the result of the link that is fed into it. Because of this, attempting to compile this chain will result in an error.
 
 ```
-TODO: put the error message here
+Error in test.son on line 1:32
+Backlink "!1" in chain: 'test::my_sine' expects at least 1 previous link, but none were found.
 ```
 
 We can fix this by actually feeding the link a frequency value.
@@ -56,7 +57,7 @@ output: A4 -> my_sine -> out: 5
 
 This program will compile and will generate our nice 5 second A4 tone. Hooray!
 
-Backlinks are to Sonny what function arguments are to other languages. However, they have an interesting property that makes them unique. In most programming languages, if a function `f` takes a single argument can calls function `g` which takes three arguments, `f` still takes only one argument. In Sonny, the chains called from within a chain *can change the number of arguments of the caller*. Let's look at an example of this.
+Backlinks are to Sonny what function arguments are to other languages. However, they have an interesting property that makes them unique. In most programming languages, if a function `f` takes a single argument and calls function `g` which takes three arguments, `f` still takes only one argument. In Sonny, the chains called from within a chain *can change the number of arguments of the caller*. Let's look at an example of this.
 
 ```
 f: !1 + 1
@@ -71,7 +72,7 @@ As it is, `f` only requires a single link before it. In the anonymous chain belo
 1 -> 2 -> 4 -> f
 ```
 
-However, if we change f to call `g`...
+However, if we change `f` to call `g`...
 
 ```
 g: !1 + !2 + !3
@@ -93,7 +94,7 @@ f2: !1 + !1 + !2 + !3
 
 Keep in mind that substituting a chain's body for its call only works if the chain has only a single link, like `g` does above.
 
-How much a called chain extends the lookback of its caller depends on form which link in the caller it is called. Consider the following chains.
+How much a called chain extends the lookback of its caller depends on from which link in the caller it is called. Consider the following chains:
 
 ```
 a: !1 + !2 + !3
@@ -114,7 +115,7 @@ b: a -> !1 -> !1
 c: 1 -> 2 -> 3 -> b
 ```
 
-In the program above, `a` is called from the first link in `b`, so `b` now looks at the values passed to it from the three previous links in 'c'. `c` evaluates to `6`.
+In the program above, `a` is called from the first link in `b`, so `b` now looks at the values passed to it from the three previous links in `c`. `c` evaluates to `6`.
 
 ```
 a: !1 + !2 + !3
@@ -122,7 +123,7 @@ b: !1 -> a -> !1
 c: 1 -> 2 -> 3 -> b
 ```
 
-In the program above, `a` is called from the second link in `b`, so `b` now looks at the values passed to it from the two previous links in 'c'. `1` is ignored, and `c` evaluates to `8`. Understanding why this is can be a bit complicated. The steps are as follows:
+In the program above, `a` is called from the second link in `b`, so `b` now looks at the values passed to it from the two previous links in `c`. `1` is ignored, and `c` evaluates to `8`. Understanding why this is can be a bit complicated. The steps are as follows:
 
 * The `!1` in in the first link of `b` becomes the `3` that it sees from the previous link in `c`.
 * The `!1` in `b`'s call to `a` becomes the `3` that it sees from the previous link in `b`.
@@ -138,4 +139,4 @@ b: !1 -> !1 -> a
 c: 1 -> 2 -> 3 -> b
 ```
 
-In the program above, `a` is called from the third link in `b`, so `b` now looks at the values passed to it from only the previous link in 'c'. `1` and `2` are ignored, and `c` evaluates to `9`. You can try to figure our why on your own. If you are having trouble understanding how chain calls and backlinks work, the next section introduces a concept which may make it easier.
+In the program above, `a` is called from the third link in `b`, so `b` now looks at the values passed to it from only the previous link in `c`. `1` and `2` are ignored, and `c` evaluates to `9`. You can try to figure our why on your own. If you are having trouble understanding how chain calls and backlinks work, the next section introduces a concept which may make it easier.

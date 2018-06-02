@@ -137,34 +137,34 @@
 <p>Let's say we want to add together two sine waves of different frequencies. We can make a simple adder like this:</p>
 <pre><code>5 -&gt; 7 -&gt; (!1 + !2)
 </code></pre>
-<p>The above chain evaluates to 12.</p>
+<p>The above chain evaluates to <code>12</code>.</p>
 <p>We can then replace the <code>5</code> and <code>7</code> with sine wave generators of different frequencies and make the chain output.</p>
 <pre><code>std gen
 
-output: A4 -&gt; gen::sine -&gt; C#4 -&gt; gen::sine -&gt; (!1 + !2) -&gt; out: 5
+output: A4 -&gt; gen::sine -&gt; C#5 -&gt; gen::sine -&gt; (!1 + !2) -&gt; out: 5
 </code></pre>
-<p>Simply replacing the numbers may same like it will work, and this code will compile. However, it will not generate the expected output because we have introduced some ambiguity. The <code>(!1 + !2)</code> link is not adding the outputs of the sine generator links. <code>!1</code> becomes the generated <code>C#4</code> wave like it should, but <code>!2</code> becomes the frequency value of <code>C#4</code> which is roughly <code>277.183</code>. Adding this number to every sample from the generated <code>C#4</code> wave will cause every sample to be somewhere in the range of <code>277.183 +- 1</code>. When finally evaluated, sample values greater than <code>1</code> become <code>1</code> and those less than <code>-1</code> become <code>-1</code>, so the program above will generate an audio buffer of all <code>1</code>'s, which has no oscillation and is thus silent.</p>
+<p>Simply replacing the numbers may seem like it will work, and this code will compile. However, it will not generate the expected output because we have introduced some ambiguity. The <code>(!1 + !2)</code> link is not adding the outputs of the sine generator links. <code>!1</code> becomes the generated <code>C#5</code> wave like it should, but <code>!2</code> becomes the frequency value of <code>C#5</code> which is roughly <code>277.183</code>. Adding this number to every sample from the generated <code>C#5</code> wave will cause every sample to be somewhere in the range of <code>277.183 +- 1</code>. When finally evaluated, sample values greater than <code>1</code> become <code>1</code> and those less than <code>-1</code> become <code>-1</code>, so the program above will generate an audio buffer of all <code>1</code>'s, which has no oscillation and is thus silent.</p>
 <p>To remove this ambiguity, we enclose the wave-generating links in a <strong>subchain</strong> by using subchain delimeters <code>| |</code>.</p>
 <pre><code>std gen
 
-output: |A4 -&gt; gen::sine| -&gt; |C#4 -&gt; gen::sine| -&gt; (!1 + !2) -&gt; out: 5
+output: |A4 -&gt; gen::sine| -&gt; |C#5 -&gt; gen::sine| -&gt; (!1 + !2) -&gt; out: 5
 </code></pre>
 <p>To make this more readable, you can put each section on a new line if you like.</p>
 <pre><code>std gen
 
 output:
     |A4 -&gt; gen::sine| -&gt;
-    |C#4 -&gt; gen::sine| -&gt;
+    |C#5 -&gt; gen::sine| -&gt;
     (!1 + !2) -&gt;
     out: 5
 </code></pre>
-<p>We have now specified that <code>A4 -&gt; gen::sine</code> and <code>C#4 -&gt; gen::sine</code> are in their own chains, so they are treated by everything outside the subchain delimeters as a chain call rather than a sequence of links. <code>!1</code> becomes the generated <code>C#4</code> wave, like it did before, but <code>!2</code> now becomes the generated <code>A4</code> wave.</p>
-<p>We are almost done adding the waves. If we compile the above program as is, the two wave will constructively interfere in certain places, creating samples with an amplitude greater than <code>1</code> or less than <code>-1</code>. Because we are adding waves, we have to normalize the sum by dividing by the number of waves we are adding.</p>
+<p>We have now specified that <code>A4 -&gt; gen::sine</code> and <code>C#5 -&gt; gen::sine</code> are in their own chains, so they are treated by everything outside the subchain delimeters as a chain call rather than a sequence of links. <code>!1</code> becomes the generated <code>C#5</code> wave, like it did before, but <code>!2</code> now becomes the generated <code>A4</code> wave.</p>
+<p>We are almost done adding the waves. If we compile the above program as is, the two waves will constructively interfere in certain places, creating samples with an amplitude greater than <code>1</code> or less than <code>-1</code>. Because we are adding waves, we have to normalize the sum by dividing by the number of waves we are adding.</p>
 <pre><code>std gen
 
 output:
     |A4 -&gt; gen::sine| -&gt;
-    |C#4 -&gt; gen::sine| -&gt;
+    |C#5 -&gt; gen::sine| -&gt;
     (!1 + !2) / 2 -&gt;
     out: 5
 </code></pre>
