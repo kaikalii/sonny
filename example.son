@@ -1,4 +1,5 @@
 std gen
+std arsd
 
 # Somebody once told me...
 melody_part_1: {C4:q, G:e, E:e, E:e, D:e, D:e, C:e, C:e, F:q, E:e, E:e, D:e, D:e, C:q}
@@ -17,10 +18,10 @@ harmony: harmony_start -> harmony_loop -> harmony_loop
 example:
 
     # Put the melody though a saw generator and then add a decay
-    |melody~ -> |!1[0] -> gen::saw| -> gen::decay| ->
+    |melody~ -> |!1[0] -> gen::saw| -> arsd::decay| ->
 
     # Put the harmony though a triangle generator and then add a decay
-    |harmony~ -> |!1[0] -> gen::triangle| -> gen::decay| ->
+    |harmony~ -> |!1[0] -> gen::triangle| -> arsd::decay| ->
 
     # Add the two waves with the balance shift a little toward the harmony
     !1 * 0.6 + !2 * 0.4 ->
