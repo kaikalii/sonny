@@ -57,7 +57,7 @@ impl Error {
         // Print the generic error message
         let erl = if let Some(ref loc) = self.location {
             format!(
-                "{}{} on in {} on line {}                                                ",
+                "{}{} in {} on line {}                                                ",
                 if self.runtime { "\r" } else { "" },
                 "Error".red().bold(),
                 loc.file.cyan().bold(),
