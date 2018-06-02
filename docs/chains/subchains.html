@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Notes - Sonny Documentation</title>
+        <title>Subchains - Sonny Documentation</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -69,7 +69,7 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li><a href="basics/intro.html"><strong aria-hidden="true">1.</strong> Basics</a></li><li><ol class="section"><li><a href="basics/generating_a_tone.html"><strong aria-hidden="true">1.1.</strong> Generating A Tone</a></li><li><a href="basics/notes.html" class="active"><strong aria-hidden="true">1.2.</strong> Notes</a></li><li><a href="basics/comments.html"><strong aria-hidden="true">1.3.</strong> Comment</a></li></ol></li><li><a href="chains/chains.html"><strong aria-hidden="true">2.</strong> Chains</a></li><li><ol class="section"><li><a href="chains/basics.html"><strong aria-hidden="true">2.1.</strong> Chain Basics</a></li><li><a href="chains/subchains.html"><strong aria-hidden="true">2.2.</strong> Subchains</a></li></ol></li></ol>
+            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li><a href="basics/intro.html"><strong aria-hidden="true">1.</strong> Basics</a></li><li><ol class="section"><li><a href="basics/generating_a_tone.html"><strong aria-hidden="true">1.1.</strong> Generating A Tone</a></li><li><a href="basics/notes.html"><strong aria-hidden="true">1.2.</strong> Notes</a></li><li><a href="basics/comments.html"><strong aria-hidden="true">1.3.</strong> Comment</a></li></ol></li><li><a href="chains/chains.html"><strong aria-hidden="true">2.</strong> Chains</a></li><li><ol class="section"><li><a href="chains/basics.html"><strong aria-hidden="true">2.1.</strong> Chain Basics</a></li><li><a href="chains/subchains.html" class="active"><strong aria-hidden="true">2.2.</strong> Subchains</a></li></ol></li></ol>
         </nav>
 
         <div id="page-wrapper" class="page-wrapper">
@@ -133,54 +133,50 @@
 
                 <div id="content" class="content">
                     <main>
-                        <a class="header" href="basics/notes.html#notes" id="notes"><h1>Notes</h1></a>
-<p>Generating a tone is all well and good, but if you want to actually make a song, you will probably want to write notes. Notes are notated with both a <strong>frequency</strong> and a <strong>duration</strong>.</p>
-<p>Lets modify our example from the previous tutorial.</p>
+                        <a class="header" href="chains/subchains.html#subchains" id="subchains"><h1>Subchains</h1></a>
+<p>Let's say we want to add together two sine waves of different frequencies. We can make a simple adder like this:</p>
+<pre><code>5 -&gt; 7 -&gt; (!1 + !2)
+</code></pre>
+<p>The above chain evaluates to 12.</p>
+<p>We can then replace the <code>5</code> and <code>7</code> with sine wave generators of different frequencies and make the chain output.</p>
 <pre><code>std gen
 
-output: A4 -&gt; gen::sine -&gt; out: 5
+output: A4 -&gt; gen::sine -&gt; C#4 -&gt; gen::sine -&gt; (!1 + !2) -&gt; out: 5
 </code></pre>
-<p>This program will produce a tone with a duration that is as long as the number you specify after the <code>out</code> term, in this case, 5 seconds. However, this number can only specify the duration of a single note for the entire project. If we want more notes, then we use a special note list syntax.</p>
+<p>Simply replacing the numbers may same like it will work, and this code will compile. However, it will not generate the expected output because we have introduced some ambiguity. The <code>(!1 + !2)</code> link is not adding the outputs of the sine generator links. <code>!1</code> becomes the generated <code>C#4</code> wave like it should, but <code>!2</code> becomes the frequency value of <code>C#4</code> which is roughly <code>277.183</code>. Adding this number to every sample from the generated <code>C#4</code> wave will cause every sample to be somewhere in the range of <code>277.183 +- 1</code>. When finally evaluated, sample values greater than <code>1</code> become <code>1</code> and those less than <code>-1</code> become <code>-1</code>, so the program above will generate an audio buffer of all <code>1</code>'s, which has no oscillation and is thus silent.</p>
+<p>To remove this ambiguity, we enclose the wave-generating links in a <strong>subchain</strong> by using subchain delimeters <code>| |</code>.</p>
 <pre><code>std gen
 
-output: {A4:5} -&gt; gen::sine -&gt; out
+output: |A4 -&gt; gen::sine| -&gt; |C#4 -&gt; gen::sine| -&gt; (!1 + !2) -&gt; out: 5
 </code></pre>
-<p>This will produce identical output to the first program. However, with the note list syntax, we can specify more notes after the first one.</p>
+<p>To make this more readable, you can put each section on a new line if you like.</p>
 <pre><code>std gen
-
-output: {A4:2, C#:2} -&gt; gen::sine -&gt; out
-</code></pre>
-<p>This will play an A4 note for 2 seconds followed by a C#4 for 2 seconds. You can put as many notes in the list as you like.</p>
-<pre><code>std gen
-
-output: {A4:2, C#:2, E:1, C#:1, A:2} -&gt; gen::sine -&gt; out
-</code></pre>
-<p>The first note in the list should have its octave specified. All subsequent notes will be in the same octave until you specify a different one. This means that note lists like <code>{A4:1, C#:1, G#3:1, E:1}</code> and <code>{A4:1, C#4:1, G#3:1, E3:1}</code> are identical.</p>
-<p>As before, you can specify a note's frequency as a number of hertz rather than a musical note name.</p>
-<pre><code>{100:2, 235.75:1, 311.32:1}
-</code></pre>
-<p>The above examples specify the note's duration as a number of seconds, but it can also be specified as a musical note duration or as a fraction of four beats. When defining note durations in this way, Sonny takes the project's tempo into account. The default tempo is 120 beats per minute, but you can set it using the <code>tempo</code> keyword.</p>
-<pre><code>tempo: 60
-
-{A4:1, 440:q, A4:1/4}
-</code></pre>
-<p>The notes in the list above are all identical. The <code>q</code> indicates a quarter note duration. You can use <code>w</code>, <code>h</code>, <code>q</code>, <code>e</code>, <code>s</code>, and <code>ts</code> to refer to whole, half, quarter, eighth, sixteenth, and thirty-second beat durations respectively. You can also dot these specifiers to indicate dotted notes. This means that durations like <code>e.</code> and <code>3/16</code> or <code>h..</code> and <code>7/8</code> are identical.</p>
-<p>Let's tie off this section by combining everything.</p>
-<pre><code>std gen
-
-tempo: 112
-
-output: { Eb4:q., Bb3:e, Eb4:q., Bb3:e, Eb4:e, Bb3:e, Eb4:e, G:e, Bb:h } -&gt; gen::sin -&gt; out
-</code></pre>
-<p>This plays the first two measures of Mozart's <em>Eine kleine Nachtmusik</em> at 112 bpm.</p>
-<p>Sonny interprets newlines the same as spaces, so if it makes it easier to read, you can split the last line into multiple.</p>
-<pre><code>std gen
-
-tempo: 112
 
 output:
-    { Eb4:q., Bb3:e, Eb4:q., Bb3:e, Eb4:e, Bb3:e, Eb4:e, G:e, Bb:h } -&gt;
-    gen::sin -&gt; out
+    |A4 -&gt; gen::sine| -&gt;
+    |C#4 -&gt; gen::sine| -&gt;
+    (!1 + !2) -&gt;
+    out: 5
+</code></pre>
+<p>We have now specified that <code>A4 -&gt; gen::sine</code> and <code>C#4 -&gt; gen::sine</code> are in their own chains, so they are treated by everything outside the subchain delimeters as a chain call rather than a sequence of links. <code>!1</code> becomes the generated <code>C#4</code> wave, like it did before, but <code>!2</code> now becomes the generated <code>A4</code> wave.</p>
+<p>We are almost done adding the waves. If we compile the above program as is, the two wave will constructively interfere in certain places, creating samples with an amplitude greater than <code>1</code> or less than <code>-1</code>. Because we are adding waves, we have to normalize the sum by dividing by the number of waves we are adding.</p>
+<pre><code>std gen
+
+output:
+    |A4 -&gt; gen::sine| -&gt;
+    |C#4 -&gt; gen::sine| -&gt;
+    (!1 + !2) / 2 -&gt;
+    out: 5
+</code></pre>
+<p>Compiling this should be generate a nice A major chord.</p>
+<p>One last note about subchains. They can be named and then called later.</p>
+<pre><code>math: |add: !2 + !1| -&gt; |subtract: !2 - !1|
+
+1 -&gt; 2 -&gt; math::add         # 1 + 2 = 3
+7 -&gt; 3 -&gt; math::subtract    # 7 - 3 = 4
+</code></pre>
+<p>Calling the <code>math</code> chain above itself would be kind of nonsensical, but it can be done.</p>
+<pre><code>3 -&gt; 2 -&gt; math      # 2 - (3 + 2) = -3
 </code></pre>
 
                     </main>
@@ -188,15 +184,11 @@ output:
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-                            <a rel="prev" href="basics/generating_a_tone.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="chains/basics.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
 
-                        
-                            <a rel="next" href="basics/comments.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
-                            </a>
                         
 
                         <div style="clear: both"></div>
@@ -206,15 +198,11 @@ output:
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a href="basics/generating_a_tone.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a href="chains/basics.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
 
-                
-                    <a href="basics/comments.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
-                    </a>
                 
             </nav>
 

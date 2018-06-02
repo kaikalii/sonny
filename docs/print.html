@@ -69,7 +69,7 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li><a href="basics/intro.html"><strong aria-hidden="true">1.</strong> Basics</a></li><li><ol class="section"><li><a href="basics/generating_a_tone.html"><strong aria-hidden="true">1.1.</strong> Generating A Tone</a></li><li><a href="basics/notes.html"><strong aria-hidden="true">1.2.</strong> Notes</a></li><li><a href="basics/comments.html"><strong aria-hidden="true">1.3.</strong> Comment</a></li></ol></li><li><a href="chains/chains.html"><strong aria-hidden="true">2.</strong> Chains</a></li><li><ol class="section"><li><a href="chains/basics.html"><strong aria-hidden="true">2.1.</strong> Chain Basics</a></li></ol></li></ol>
+            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li><a href="basics/intro.html"><strong aria-hidden="true">1.</strong> Basics</a></li><li><ol class="section"><li><a href="basics/generating_a_tone.html"><strong aria-hidden="true">1.1.</strong> Generating A Tone</a></li><li><a href="basics/notes.html"><strong aria-hidden="true">1.2.</strong> Notes</a></li><li><a href="basics/comments.html"><strong aria-hidden="true">1.3.</strong> Comment</a></li></ol></li><li><a href="chains/chains.html"><strong aria-hidden="true">2.</strong> Chains</a></li><li><ol class="section"><li><a href="chains/basics.html"><strong aria-hidden="true">2.1.</strong> Chain Basics</a></li><li><a href="chains/subchains.html"><strong aria-hidden="true">2.2.</strong> Subchains</a></li></ol></li></ol>
         </nav>
 
         <div id="page-wrapper" class="page-wrapper">
@@ -328,6 +328,51 @@ b: !1 -&gt; !1 -&gt; a
 c: 1 -&gt; 2 -&gt; 3 -&gt; b
 </code></pre>
 <p>In the program above, <code>a</code> is called from the third link in <code>b</code>, so <code>b</code> now looks at the values passed to it from only the previous link in 'c'. <code>1</code> and <code>2</code> are ignored, and <code>c</code> evaluates to <code>9</code>. You can try to figure our why on your own. If you are having trouble understanding how chain calls and backlinks work, the next section introduces a concept which may make it easier.</p>
+<a class="header" href="print.html#subchains" id="subchains"><h1>Subchains</h1></a>
+<p>Let's say we want to add together two sine waves of different frequencies. We can make a simple adder like this:</p>
+<pre><code>5 -&gt; 7 -&gt; (!1 + !2)
+</code></pre>
+<p>The above chain evaluates to 12.</p>
+<p>We can then replace the <code>5</code> and <code>7</code> with sine wave generators of different frequencies and make the chain output.</p>
+<pre><code>std gen
+
+output: A4 -&gt; gen::sine -&gt; C#4 -&gt; gen::sine -&gt; (!1 + !2) -&gt; out: 5
+</code></pre>
+<p>Simply replacing the numbers may same like it will work, and this code will compile. However, it will not generate the expected output because we have introduced some ambiguity. The <code>(!1 + !2)</code> link is not adding the outputs of the sine generator links. <code>!1</code> becomes the generated <code>C#4</code> wave like it should, but <code>!2</code> becomes the frequency value of <code>C#4</code> which is roughly <code>277.183</code>. Adding this number to every sample from the generated <code>C#4</code> wave will cause every sample to be somewhere in the range of <code>277.183 +- 1</code>. When finally evaluated, sample values greater than <code>1</code> become <code>1</code> and those less than <code>-1</code> become <code>-1</code>, so the program above will generate an audio buffer of all <code>1</code>'s, which has no oscillation and is thus silent.</p>
+<p>To remove this ambiguity, we enclose the wave-generating links in a <strong>subchain</strong> by using subchain delimeters <code>| |</code>.</p>
+<pre><code>std gen
+
+output: |A4 -&gt; gen::sine| -&gt; |C#4 -&gt; gen::sine| -&gt; (!1 + !2) -&gt; out: 5
+</code></pre>
+<p>To make this more readable, you can put each section on a new line if you like.</p>
+<pre><code>std gen
+
+output:
+    |A4 -&gt; gen::sine| -&gt;
+    |C#4 -&gt; gen::sine| -&gt;
+    (!1 + !2) -&gt;
+    out: 5
+</code></pre>
+<p>We have now specified that <code>A4 -&gt; gen::sine</code> and <code>C#4 -&gt; gen::sine</code> are in their own chains, so they are treated by everything outside the subchain delimeters as a chain call rather than a sequence of links. <code>!1</code> becomes the generated <code>C#4</code> wave, like it did before, but <code>!2</code> now becomes the generated <code>A4</code> wave.</p>
+<p>We are almost done adding the waves. If we compile the above program as is, the two wave will constructively interfere in certain places, creating samples with an amplitude greater than <code>1</code> or less than <code>-1</code>. Because we are adding waves, we have to normalize the sum by dividing by the number of waves we are adding.</p>
+<pre><code>std gen
+
+output:
+    |A4 -&gt; gen::sine| -&gt;
+    |C#4 -&gt; gen::sine| -&gt;
+    (!1 + !2) / 2 -&gt;
+    out: 5
+</code></pre>
+<p>Compiling this should be generate a nice A major chord.</p>
+<p>One last note about subchains. They can be named and then called later.</p>
+<pre><code>math: |add: !2 + !1| -&gt; |subtract: !2 - !1|
+
+1 -&gt; 2 -&gt; math::add         # 1 + 2 = 3
+7 -&gt; 3 -&gt; math::subtract    # 7 - 3 = 4
+</code></pre>
+<p>Calling the <code>math</code> chain above itself would be kind of nonsensical, but it can be done.</p>
+<pre><code>3 -&gt; 2 -&gt; math      # 2 - (3 + 2) = -3
+</code></pre>
 
                     </main>
 
