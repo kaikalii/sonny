@@ -11,14 +11,14 @@
 * Standard programming language expression evaluation including arithmetic, logical, and ternary operators
 * Modular arithmetic sound transformation via function-like constructs called "chains"
 * Easy-to-type note entry to build song loops
-* Loop arrangement via chains
+* Song loop arrangement via chains
+* Frequency-domain sound manipulation (not perfect)
 * Simple but effective module system for separating code into multiple files or libraries
 * Compiles to .WAV format
 
 ### Planned Features
 
 * Output to other audio formats, namely .MP3 and .OGG
-* Frequency-domain sound manipulation
 * Playback and manipulation of external audio samples
 * A more powerful module system for more complex libraries
 * Continuous sound playback from the compiler itself
