@@ -16,7 +16,7 @@ pub enum Operand {
     Var(Variable),
     Id(ChainName),
     Properties(ChainName),
-    BackLink(usize),
+    BackLink(usize, CodeLocation),
     Time,
     WindowSize,
     BufferSize,

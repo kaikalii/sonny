@@ -206,7 +206,7 @@ fn write(
                 window_size.min(song.len() - window_start),
                 this_buffer_size,
                 sample_rate,
-            );
+            )?;
             for (i, r) in window_result.into_iter().skip(this_buffer_size).enumerate() {
                 song[i + window_start] = f64::from(r);
             }

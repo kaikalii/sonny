@@ -453,15 +453,18 @@ impl Parser {
     // Match a backlink
     fn backlink(&mut self) -> SonnyResult<Operand> {
         self.mas("!")?;
-        let op = Operand::BackLink(if let Ok(x) = self.look.1.parse() {
-            if x == 0 {
-                return Err(Error::new(ZeroBacklink).on_line(self.lexer.loc()));
+        let op = Operand::BackLink(
+            if let Ok(x) = self.look.1.parse() {
+                if x == 0 {
+                    return Err(Error::new(ZeroBacklink).on_line(self.lexer.loc()));
+                } else {
+                    x
+                }
             } else {
-                x
-            }
-        } else {
-            return Err(Error::new(InvalidBackLink(self.look.clone())).on_line(self.lexer.loc()));
-        });
+                return Err(Error::new(InvalidBackLink(self.look.clone())).on_line(self.lexer.loc()));
+            },
+            self.lexer.loc(),
+        );
         self.mat(Num)?;
         Ok(op)
     }
@@ -900,6 +903,9 @@ impl Parser {
     fn chain_declaration(&mut self, name_optional: bool) -> SonnyResult<ChainName> {
         let mut name = None;
         if self.look.0 == Id && self.peek().1 == ":" || !name_optional {
+            if !name_optional && self.look.0 != Id {
+                return Err(Error::new(UnnamedTopChain).on_line(self.lexer.loc()));
+            }
             name = Some(self.look.1.clone());
             self.mat(Id)?;
             self.mas(":")?;

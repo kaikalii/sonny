@@ -24,18 +24,27 @@ pub enum ErrorSpec {
     ChainRedeclaration(ChainName),
     CantOpenOutputFile,
     MultipleOutChains(CodeLocation),
+    UnstatisfiedBacklink(ChainName, usize, usize),
+    UnnamedTopChain,
 }
 
 #[derive(Debug, Clone)]
 pub struct Error {
     pub spec: ErrorSpec,
+    pub runtime: bool,
     pub location: Option<CodeLocation>,
 }
 
 impl Error {
     pub fn new(spec: ErrorSpec) -> Error {
+        use self::ErrorSpec::*;
+        let runtime = match spec {
+            UnstatisfiedBacklink(..) => true,
+            _ => false,
+        };
         Error {
             spec,
+            runtime,
             location: None,
         }
     }
@@ -48,9 +57,11 @@ impl Error {
         // Print the generic error message
         let erl = if let Some(ref loc) = self.location {
             format!(
-                "{} on line {}",
+                "{}{} on in {} on line {}                                                ",
+                if self.runtime { "\r" } else { "" },
                 "Error".red().bold(),
-                format!("{}", loc).cyan().bold()
+                loc.file.cyan().bold(),
+                format!("{}:{}", loc.line, loc.column).cyan().bold()
             )
         } else {
             format!("{}", "Error".red().bold())
@@ -101,6 +112,19 @@ impl Error {
                 "Multiple output chains.\nFirst output declared on line {}.",
                 loc
             ),
+            UnstatisfiedBacklink(ref chain_name, expected, found) => println!(
+                "Backlink \"!{}\" in {} expects at least {} previous link{}, but {} found.",
+                expected,
+                chain_name,
+                expected,
+                if expected > 1 { "s" } else { "" },
+                match found {
+                    0 => "none were".to_string(),
+                    1 => "only 1 was".to_string(),
+                    _ => format!("only {} were", found),
+                }
+            ),
+            UnnamedTopChain => println!("Chains within a file's top-level scope must be named."),
         }
     }
 }

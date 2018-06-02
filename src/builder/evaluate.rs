@@ -7,6 +7,7 @@ use rayon::prelude::*;
 use rustfft::{num_complex::Complex, num_traits::Zero, FFTplanner};
 
 use builder::{variable::*, *};
+use error::*;
 
 type Variables = Vec<Variable>;
 
@@ -89,14 +90,14 @@ impl Builder {
         window_size: usize,
         buffer_size: usize,
         sample_rate: f64,
-    ) -> Variables {
+    ) -> SonnyResult<Variables> {
         use Operand::*;
-        match *operand {
+        Ok(match *operand {
             // for Nums, simply return the num
             Var(ref x) => vec![x.clone(); buffer_size + window_size],
             // for Ids, call the associated function
             Id(ref id) => {
-                self.evaluate_chain(id, args, time, window_size, buffer_size, sample_rate)
+                self.evaluate_chain(id, args, time, window_size, buffer_size, sample_rate)?
             }
             // for Notes Properties...
             Properties(ref id) => if let Some(chain) = self.find_chain(id) {
@@ -148,7 +149,16 @@ impl Builder {
                 .map(|x| Variable::Number(f64::from(x as u32)))
                 .collect(),
             // For Backlinks, reference the arguments passed
-            BackLink(num) => args[num - 1].clone(),
+            BackLink(num, ref loc) => {
+                if num - 1 >= args.len() {
+                    return Err(Error::new(ErrorSpec::UnstatisfiedBacklink(
+                        name.clone(),
+                        num,
+                        args.len(),
+                    )).on_line(loc.clone()));
+                }
+                args[num - 1].clone()
+            }
             // It's technically not possible to have notes here, since
             // all notes operands are removed when a chain is finalized.
             // Just make sure. You never know. This might change.
@@ -176,23 +186,21 @@ impl Builder {
                 window_size,
                 buffer_size,
                 sample_rate,
-            ),
+            )?,
             // Evaluate an array
             Array(ref expressions) => {
-                let uncollated: Vec<Variables> = expressions
-                    .iter()
-                    .map(|expression| {
-                        self.evaluate_expression(
-                            expression,
-                            name,
-                            args,
-                            time,
-                            window_size,
-                            buffer_size,
-                            sample_rate,
-                        )
-                    })
-                    .collect();
+                let mut uncollated: Vec<Variables> = Vec::new();
+                for expression in expressions {
+                    uncollated.push(self.evaluate_expression(
+                        expression,
+                        name,
+                        args,
+                        time,
+                        window_size,
+                        buffer_size,
+                        sample_rate,
+                    )?)
+                }
                 let mut result =
                     vec![
                         Variable::Array(vec![Variable::Number(0.0); expressions.len()]);
@@ -207,7 +215,7 @@ impl Builder {
                 }
                 result
             }
-        }
+        })
     }
 
     // Evaluate an expression with the given arguments and time
@@ -220,7 +228,7 @@ impl Builder {
         window_size: usize,
         buffer_size: usize,
         sample_rate: f64,
-    ) -> Variables {
+    ) -> SonnyResult<Variables> {
         // Evaluate Operands
         use self::Operation::*;
         let ops = expression.0.operands();
@@ -232,16 +240,36 @@ impl Builder {
             window_size,
             buffer_size,
             sample_rate,
-        );
-        let y = ops.1.map(|op| {
-            self.evaluate_operand(op, name, args, time, window_size, buffer_size, sample_rate)
-        });
-        let z = ops.2.map(|op| {
-            self.evaluate_operand(op, name, args, time, window_size, buffer_size, sample_rate)
-        });
+        )?;
+        let y = if let Some(op) = ops.1 {
+            Some(self.evaluate_operand(
+                op,
+                name,
+                args,
+                time,
+                window_size,
+                buffer_size,
+                sample_rate,
+            )?)
+        } else {
+            None
+        };
+        let z = if let Some(op) = ops.2 {
+            Some(self.evaluate_operand(
+                op,
+                name,
+                args,
+                time,
+                window_size,
+                buffer_size,
+                sample_rate,
+            )?)
+        } else {
+            None
+        };
 
         // Evaluate Operation
-        match expression.0 {
+        Ok(match expression.0 {
             Add(..) => x.into_par_iter()
                 .zip(y.expect("failed to unwrap y in add").into_par_iter())
                 .map(|(x, y)| x + y)
@@ -417,7 +445,7 @@ impl Builder {
                 vec![fft_result.clone(); buffer_size + window_size]
             }
             Window(..) => vec![Variable::Array(x.clone()); buffer_size + window_size],
-        }
+        })
     }
 
     // Evaluate a chain
@@ -429,8 +457,8 @@ impl Builder {
         window_size: usize,
         buffer_size: usize,
         sample_rate: f64,
-    ) -> Variables {
-        if let Some(chain) = self.find_chain(name) {
+    ) -> SonnyResult<Variables> {
+        Ok(if let Some(chain) = self.find_chain(name) {
             match chain.links {
                 ChainLinks::Generic(ref expressions) => {
                     let mut results: Vec<Variables> = Vec::new();
@@ -452,7 +480,7 @@ impl Builder {
                                 window_size,
                                 buffer_size,
                                 sample_rate,
-                            ));
+                            )?);
                         }
                         results.extend(results_collector.into_iter());
                     }
@@ -480,6 +508,6 @@ impl Builder {
             }
         } else {
             panic!("No function named '{}'", name);
-        }
+        })
     }
 }
