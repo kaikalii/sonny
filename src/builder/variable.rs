@@ -1,13 +1,40 @@
 use std::cmp::Ordering;
 use std::f64;
+use std::fmt;
 use std::ops;
 
 // A universal variable type
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 #[allow(dead_code)]
 pub enum Variable {
     Number(f64),
     Array(Vec<Variable>),
+}
+
+impl fmt::Debug for Variable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Variable::*;
+        match *self {
+            Number(x) => x.fmt(f),
+            Array(ref v) => v.fmt(f),
+        }
+    }
+}
+
+impl fmt::Display for Variable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Variable::*;
+        match *self {
+            Number(x) => write!(f, "{}", x as u8 as char),
+            Array(ref v) => write!(
+                f,
+                "{}",
+                v.iter()
+                    .map(|x| f64::from(x.clone()) as u8 as char)
+                    .collect::<String>()
+            ),
+        }
+    }
 }
 
 impl From<Variable> for f64 {

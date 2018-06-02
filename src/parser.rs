@@ -666,6 +666,16 @@ impl Parser {
             Expression(Operation::Window(Operand::Expression(Box::new(
                 self.exp_un()?,
             ))))
+        } else if &self.look.1 == "debug" {
+            self.mas("debug")?;
+            Expression(Operation::Debug(Operand::Expression(Box::new(
+                self.exp_un()?,
+            ))))
+        } else if &self.look.1 == "print" {
+            self.mas("print")?;
+            Expression(Operation::Print(Operand::Expression(Box::new(
+                self.exp_un()?,
+            ))))
         } else {
             self.term()?
         })

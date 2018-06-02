@@ -445,6 +445,8 @@ impl Builder {
                 vec![fft_result.clone(); buffer_size + window_size]
             }
             Window(..) => vec![Variable::Array(x.clone()); buffer_size + window_size],
+            Debug(..) => return Err(Error::new(ErrorSpec::DebugVar(x[0].clone()))),
+            Print(..) => return Err(Error::new(ErrorSpec::DebugString(x[0].clone()))),
         })
     }
 

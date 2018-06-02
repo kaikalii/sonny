@@ -33,6 +33,8 @@ static KEYWORDS: &[&'static str] = &[
     "sample_rate",
     "wi",
     "window",
+    "debug",
+    "print",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
