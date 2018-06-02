@@ -1,0 +1,5 @@
+# Chains for dealing with attack, decay, release, and sustain
+
+# Takes a wave generated from notes and the notes property array.
+# Linearly decays each note's volume over its duration.
+decay: !1 * (1 - (time - !2[1]) / (!2[3] + 0.0001)) max 0

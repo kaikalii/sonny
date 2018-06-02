@@ -1,3 +1,4 @@
+# Various waveform generator chains
 
 # Generates a sine wave given an input frequency
 sine: sin(2 * pi * time * !1)
@@ -10,8 +11,3 @@ saw: 2 * (time * !1 - floor(0.5 + time * !1))
 
 # Generates a triangle wave given an input frequency
 triangle: 2 * (abs saw - 0.5)
-
-# Takes a wave generated from notes, the start property
-# of the notes, and the end property of the notes.
-# Linearly decays each note's volume over its duration.
-decay: !1 * (1 - (time - !2[1]) / (!2[3] + 0.0001)) max 0
