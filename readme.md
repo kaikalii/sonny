@@ -57,9 +57,9 @@ The *Sonny* compiler is written in the Rust programming language. Currently, the
 
 If you do not already have *Rust* installed, head over to [the *Rust* website](https://www.rust-lang.org/) and install it. Once cargo is installed, simply run these commands in your terminal:
 ```
-git clone https://github.com/kaikalii/sonny
+git clone https://github.com/kaikalii/sonny.git
 cd sonny
-cargo build
+cargo build --release
 ```
 Then, you can run the example:
 ```
@@ -67,9 +67,11 @@ cargo run example.son --play
 ```
 After this, you can `cargo build --release` and add /PATH/TO/sonny/target/release to your path if you want to be able to compile *Sonny* projects from any directory.
 
-# Tutorial
+If you use Atom as your editor, you can get syntax highlighting for *Sonny* by installing the [language-sonny](https://github.com/kaikalii/language-sonny) package.
 
-To learn the basics or programming ns *Sonny*, head over to [the documentation](https://kaikalii.github.io/sonny/).
+# Documentation
+
+To learn the basics or programming in *Sonny*, head over to [the documentation](https://kaikalii.github.io/sonny/).
 
 # Contributing
 
