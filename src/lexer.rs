@@ -35,6 +35,9 @@ static KEYWORDS: &[&'static str] = &[
     "window",
     "debug",
     "print",
+    "cat",
+    "len",
+    "find",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]

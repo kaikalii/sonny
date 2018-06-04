@@ -676,6 +676,11 @@ impl Parser {
             Expression(Operation::Print(Operand::Expression(Box::new(
                 self.exp_un()?,
             ))))
+        } else if &self.look.1 == "len" {
+            self.mas("len")?;
+            Expression(Operation::Length(Operand::Expression(Box::new(
+                self.exp_un()?,
+            ))))
         } else {
             self.term()?
         })
@@ -776,45 +781,67 @@ impl Parser {
         }
         Ok(expr)
     }
+    // Match array operation expressions
+    fn exp_array_op(&mut self) -> SonnyResult<Expression> {
+        let mut expr = self.exp_add()?;
+        loop {
+            if self.look.1 == "cat" {
+                self.mas("cat")?;
+                expr = Expression(Operation::Concatenate(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_add()?)),
+                ));
+            } else if self.look.1 == "find" {
+                self.mas("find")?;
+                expr = Expression(Operation::Find(
+                    Operand::Expression(Box::new(expr)),
+                    Operand::Expression(Box::new(self.exp_add()?)),
+                ));
+            } else {
+                break;
+            }
+        }
+        Ok(expr)
+    }
     // Match a comparison expression
     fn exp_cmp(&mut self) -> SonnyResult<Expression> {
-        let mut expr = self.exp_add()?;
+        let mut expr = self.exp_array_op()?;
         loop {
             if self.look.1 == "==" {
                 self.mas("==")?;
                 expr = Expression(Operation::Equal(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_add()?)),
+                    Operand::Expression(Box::new(self.exp_array_op()?)),
                 ));
             } else if self.look.1 == "!=" {
                 self.mas("!=")?;
                 expr = Expression(Operation::NotEqual(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_add()?)),
+                    Operand::Expression(Box::new(self.exp_array_op()?)),
                 ));
             } else if self.look.1 == "<" {
                 self.mas("<")?;
                 expr = Expression(Operation::LessThan(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_add()?)),
+                    Operand::Expression(Box::new(self.exp_array_op()?)),
                 ));
             } else if self.look.1 == ">" {
                 self.mas(">")?;
                 expr = Expression(Operation::GreaterThan(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_add()?)),
+                    Operand::Expression(Box::new(self.exp_array_op()?)),
                 ));
             } else if self.look.1 == "<=" {
                 self.mas("<=")?;
                 expr = Expression(Operation::LessThanOrEqual(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_add()?)),
+                    Operand::Expression(Box::new(self.exp_array_op()?)),
                 ));
             } else if self.look.1 == ">=" {
                 self.mas(">=")?;
                 expr = Expression(Operation::GreaterThanOrEqual(
                     Operand::Expression(Box::new(expr)),
-                    Operand::Expression(Box::new(self.exp_add()?)),
+                    Operand::Expression(Box::new(self.exp_array_op()?)),
                 ));
             } else {
                 break;

@@ -62,6 +62,9 @@ pub enum Operation {
     Window(Operand),
     Debug(Operand),
     Print(Operand),
+    Concatenate(Operand, Operand),
+    Length(Operand),
+    Find(Operand, Operand),
 }
 
 impl Operation {
@@ -72,7 +75,9 @@ impl Operation {
             // One argument operations
             Negate(ref a) | Sine(ref a) | Cosine(ref a) | Ceiling(ref a) | Floor(ref a)
             | AbsoluteValue(ref a) | Logarithm(ref a) | Operand(ref a) | Average(ref a)
-            | FFT(ref a) | Window(ref a) | Debug(ref a) | Print(ref a) => (a, None, None),
+            | FFT(ref a) | Window(ref a) | Debug(ref a) | Print(ref a) | Length(ref a) => {
+                (a, None, None)
+            }
             // Two argument operations
             Add(ref a, ref b)
             | Subtract(ref a, ref b)
@@ -90,7 +95,9 @@ impl Operation {
             | NotEqual(ref a, ref b)
             | Or(ref a, ref b)
             | And(ref a, ref b)
-            | Index(ref a, ref b) => (a, Some(b), None),
+            | Index(ref a, ref b)
+            | Concatenate(ref a, ref b)
+            | Find(ref a, ref b) => (a, Some(b), None),
             // Three arguement operations
             Ternary(ref a, ref b, ref c) | SubArray(ref a, ref b, ref c) => (a, Some(b), Some(c)),
         }

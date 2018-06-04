@@ -344,4 +344,38 @@ impl Variable {
             }
         }
     }
+    pub fn cat(self, other: Variable) -> Variable {
+        use self::Variable::*;
+        match self {
+            Number(..) => match other {
+                Number(..) => Array(vec![self, other]),
+                Array(y) => Array(vec![self].into_iter().chain(y.into_iter()).collect()),
+            },
+            Array(x) => match other {
+                Number(..) => Array(x.into_iter().chain(vec![other].into_iter()).collect()),
+                Array(y) => Array(x.into_iter().chain(y.into_iter()).collect()),
+            },
+        }
+    }
+    pub fn len(self) -> Variable {
+        use self::Variable::*;
+        match self {
+            Number(..) => Number(1.0),
+            Array(x) => Number(x.len() as f64),
+        }
+    }
+    pub fn find(self, other: Variable) -> Variable {
+        use self::Variable::*;
+        match self {
+            Number(..) => match other {
+                Number(..) => Number(if self == other { 0.0 } else { -1.0 }),
+                Array(..) => Number(-1.0),
+            },
+            Array(x) => Number(if let Some(pos) = x.into_iter().position(|x| x == other) {
+                pos as f64
+            } else {
+                -1.0
+            }),
+        }
+    }
 }

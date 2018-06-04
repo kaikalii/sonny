@@ -482,6 +482,18 @@ impl Builder {
             Window(..) => vec![Variable::Array(x.clone()); buffer_size + window_size],
             Debug(..) => return Err(Error::new(ErrorSpec::DebugVar(x[0].clone()))),
             Print(..) => return Err(Error::new(ErrorSpec::DebugString(x[0].clone()))),
+            Concatenate(..) => x.into_par_iter()
+                .zip(
+                    y.expect("unable to unwrap y in concatenate")
+                        .into_par_iter(),
+                )
+                .map(|(x, y)| x.cat(y))
+                .collect(),
+            Length(..) => x.into_par_iter().map(|x| x.len()).collect(),
+            Find(..) => x.into_par_iter()
+                .zip(y.expect("unable to unwrap y in find").into_par_iter())
+                .map(|(x, y)| x.find(y))
+                .collect(),
         })
     }
 
