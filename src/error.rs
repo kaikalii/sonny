@@ -24,10 +24,12 @@ pub enum ErrorSpec {
     ChainRedeclaration(ChainName),
     CantOpenOutputFile,
     MultipleOutChains(CodeLocation),
-    UnstatisfiedBacklink(ChainName, usize, usize),
+    UnsatisfiedBacklink(ChainName, usize, usize),
     UnnamedTopChain,
     DebugVar(Variable),
     DebugString(Variable),
+    IndexOutOfBounds(usize, usize),
+    NegativeIndex(i32),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -56,7 +58,7 @@ impl Error {
     pub fn new(spec: ErrorSpec) -> Error {
         use self::{ErrorSeverity::*, ErrorSpec::*, ErrorTime::*};
         let runtime = match spec {
-            UnstatisfiedBacklink(..) => RunClear,
+            UnsatisfiedBacklink(..) | IndexOutOfBounds(..) | NegativeIndex(..) => RunClear,
             DebugVar(..) | DebugString(..) => Run,
             _ => Compile,
         };
@@ -84,8 +86,9 @@ impl Error {
             Debug => "Debug".yellow().bold(),
             Print => "Print".yellow().bold(),
         };
-        if let Run = self.runtime {
-            println!();
+        match self.runtime {
+            Run | RunClear => println!(),
+            _ => (),
         }
         let erl = if let Some(ref loc) = self.location {
             format!(
@@ -142,7 +145,7 @@ impl Error {
                 "Multiple output chains.\nFirst output declared on line {}.",
                 loc
             ),
-            UnstatisfiedBacklink(chain_name, expected, found) => println!(
+            UnsatisfiedBacklink(chain_name, expected, found) => println!(
                 "Backlink \"!{}\" in {} expects at least {} previous link{}, but {} found.",
                 expected,
                 chain_name,
@@ -157,6 +160,11 @@ impl Error {
             UnnamedTopChain => println!("Chains within a file's top-level scope must be named."),
             DebugVar(var) => println!("{:?}", var),
             DebugString(var) => println!("{}", var),
+            IndexOutOfBounds(i, n) => println!(
+                "Index out of bounds. The index is {} but the length is {}.",
+                i, n
+            ),
+            NegativeIndex(i) => println!("Index is negative: {}.", i),
         }
     }
 }

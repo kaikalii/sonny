@@ -354,7 +354,7 @@ impl Variable {
             },
         }
     }
-    pub fn len(self) -> Variable {
+    pub fn len(&self) -> Variable {
         use self::Variable::*;
         match self {
             Number(..) => Number(1.0),

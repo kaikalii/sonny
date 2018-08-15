@@ -150,7 +150,7 @@ impl Builder {
             // For Backlinks, reference the arguments passed
             BackLink(num, ref loc) => {
                 if num - 1 >= args.len() {
-                    return Err(Error::new(ErrorSpec::UnstatisfiedBacklink(
+                    return Err(Error::new(ErrorSpec::UnsatisfiedBacklink(
                         name.clone(),
                         num,
                         args.len(),
@@ -443,20 +443,61 @@ impl Builder {
                     _ => unreachable!(),
                 },
             },
-            Index(..) => x
-                .into_par_iter()
-                .zip(y.expect("failed to unwrap y in index").into_par_iter())
-                .map(|(x, y)| x[y].clone())
-                .collect(),
-            SubArray(..) => x
-                .into_par_iter()
-                .zip(
-                    y.expect("failed to unwrap y in sub_array")
-                        .into_par_iter()
-                        .zip(z.expect("failed to unwrap z in sub_array").into_par_iter()),
-                )
-                .map(|(x, (y, z))| x.sub_array(y, z))
-                .collect(),
+            Index(..) => {
+                let vars: Vec<Result<Variable, Error>> = x
+                    .into_par_iter()
+                    .zip(y.expect("failed to unwrap y in index").into_par_iter())
+                    .map(|(x, y)| {
+                        if y < Variable::Number(0.0) {
+                            Err(Error::new(ErrorSpec::NegativeIndex(f64::from(y) as i32)))
+                        } else if y < x.len() {
+                            Ok(x[y].clone())
+                        } else {
+                            Err(Error::new(ErrorSpec::IndexOutOfBounds(
+                                f64::from(y) as usize,
+                                f64::from(x.len()) as usize,
+                            )))
+                        }
+                    })
+                    .collect();
+                if let Some(err) = vars.iter().find(|var| var.is_err()) {
+                    err.clone()?;
+                };
+                vars.into_iter().map(|var| var.unwrap()).collect()
+            }
+            SubArray(..) => {
+                let vars: Vec<Result<Variable, Error>> = x
+                    .into_par_iter()
+                    .zip(
+                        y.expect("failed to unwrap y in sub_array")
+                            .into_par_iter()
+                            .zip(z.expect("failed to unwrap z in sub_array").into_par_iter()),
+                    )
+                    .map(|(x, (y, z))| {
+                        if y < Variable::Number(0.0) {
+                            Err(Error::new(ErrorSpec::NegativeIndex(f64::from(y) as i32)))
+                        } else if z < Variable::Number(0.0) {
+                            Err(Error::new(ErrorSpec::NegativeIndex(f64::from(z) as i32)))
+                        } else if y >= x.len() {
+                            Err(Error::new(ErrorSpec::IndexOutOfBounds(
+                                f64::from(y) as usize,
+                                f64::from(x.len()) as usize,
+                            )))
+                        } else if z >= x.len() {
+                            Err(Error::new(ErrorSpec::IndexOutOfBounds(
+                                f64::from(z) as usize,
+                                f64::from(x.len()) as usize,
+                            )))
+                        } else {
+                            Ok(x.sub_array(y, z))
+                        }
+                    })
+                    .collect();
+                if let Some(err) = vars.iter().find(|var| var.is_err()) {
+                    err.clone()?;
+                };
+                vars.into_iter().map(|var| var.unwrap()).collect()
+            }
             Average(..) => x.into_par_iter().map(|x| x.average()).collect(),
             FFT(..) => {
                 let mut input: Vec<Complex<f64>> = x
