@@ -1,15 +1,11 @@
-use std::env;
-use std::f64;
-use std::path::PathBuf;
+use std::{env, f64, path::PathBuf};
 
 use either::*;
-
 use find_folder::{Search, SearchFolder};
 
 use builder::{variable::*, *};
 use error::{ErrorSpec::*, *};
-use lexer::TokenType::*;
-use lexer::*;
+use lexer::{TokenType::*, *};
 
 type IndexerOk = Option<(Option<Expression>, Option<Expression>, Option<Expression>)>;
 
@@ -69,7 +65,8 @@ impl Parser {
             .to_string();
         // If this chain name already exists, then this is a file that
         // has already been included. Return the builder.
-        if self.builder
+        if self
+            .builder
             .find_chain(&ChainName::Scoped(top_chain_name.clone()))
             .is_some()
         {
@@ -104,7 +101,8 @@ impl Parser {
                 }
                 filename.push_str(".son");
                 // Temporarily pop off this file's scope
-                let temp_scope = self.builder
+                let temp_scope = self
+                    .builder
                     .names_in_scope
                     .pop()
                     .expect("no chains in scope");
@@ -399,9 +397,12 @@ impl Parser {
                 "s" => 0.0625,
                 "ts" => 0.03125,
                 _ => {
-                    return Err(Error::new(DurationQuantifier(self.look.clone())).on_line(self.lexer.loc()))
+                    return Err(
+                        Error::new(DurationQuantifier(self.look.clone())).on_line(self.lexer.loc())
+                    )
                 }
-            } / (self.builder.tempo / 60.0) * 4.0;
+            } / (self.builder.tempo / 60.0)
+                * 4.0;
             self.mat(Keyword)?;
             for i in 0..self.dots()? {
                 frac += frac / 2usize.pow(i as u32 + 1) as f64;
@@ -526,7 +527,10 @@ impl Parser {
                     "buffer_size" => Operand::BufferSize,
                     "sample_rate" => Operand::SampleRate,
                     "wi" => Operand::WindowIndex,
-                    _ => return Err(Error::new(InvalidKeyword(self.look.1.clone())).on_line(self.lexer.loc())),
+                    _ => {
+                        return Err(Error::new(InvalidKeyword(self.look.1.clone()))
+                            .on_line(self.lexer.loc()))
+                    }
                 };
                 self.mat(Keyword)?;
                 Ok(op)
@@ -550,12 +554,15 @@ impl Parser {
                 if self.look.1 == "~" {
                     self.mas("~")?;
                     let operand = Ok(Operand::Properties(name.clone()));
-                    if let ChainLinks::Generic(..) = self.builder
+                    if let ChainLinks::Generic(..) = self
+                        .builder
                         .find_chain(&name)
                         .expect("Unable to find chain")
                         .links
                     {
-                        return Err(Error::new(PropertiesOfGenericChain(name)).on_line(self.lexer.loc()));
+                        return Err(
+                            Error::new(PropertiesOfGenericChain(name)).on_line(self.lexer.loc())
+                        );
                     }
                     operand
                 } else {

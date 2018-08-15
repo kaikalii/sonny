@@ -11,12 +11,12 @@ mod error;
 mod lexer;
 mod parser;
 
-use std::{collections::VecDeque,
-          env,
-          f64,
-          i16,
-          io::{stdout, Write},
-          time::Instant};
+use std::{
+    collections::VecDeque,
+    env, f64, i16,
+    io::{stdout, Write},
+    time::Instant,
+};
 
 use colored::*;
 
@@ -156,7 +156,7 @@ fn write(
 
     // output the main chain
     if let Some(name) = builder.chains.iter().find(|f| f.1.play).map(|f| f.0) {
-        // populate the sample array with its own indicies so because par_iter doesn't have enumerate()
+        // populate the sample array with its own indicies because par_iter doesn't have enumerate()
         let mut song = vec![0f64; (sample_rate * (end - start_time)) as usize];
         // run each sample window as a batch
         let mut then = Instant::now(); // Keeps track of the time when the last window iteration started

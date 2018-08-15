@@ -3,7 +3,6 @@
 use std::f64;
 
 use rayon::prelude::*;
-
 use rustfft::{num_complex::Complex, num_traits::Zero, FFTplanner};
 
 use builder::{variable::*, *};
@@ -298,39 +297,48 @@ impl Builder {
 
         // Evaluate Operation
         Ok(match expression.0 {
-            Add(..) => x.into_par_iter()
+            Add(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in add").into_par_iter())
                 .map(|(x, y)| x + y)
                 .collect(),
-            Subtract(..) => x.into_par_iter()
+            Subtract(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in sub").into_par_iter())
                 .map(|(x, y)| x - y)
                 .collect(),
-            Multiply(..) => x.into_par_iter()
+            Multiply(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in mul").into_par_iter())
                 .map(|(x, y)| x * y)
                 .collect(),
-            Divide(..) => x.into_par_iter()
+            Divide(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in div").into_par_iter())
                 .map(|(x, y)| x / y)
                 .collect(),
-            Remainder(..) => x.into_par_iter()
+            Remainder(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in rem").into_par_iter())
                 .map(|(x, y)| x % y)
                 .collect(),
-            Power(..) => x.into_par_iter()
+            Power(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in pow").into_par_iter())
                 .map(|(x, y)| x.pow(y))
                 .collect(),
-            Min(..) => x.into_par_iter()
+            Min(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in min").into_par_iter())
                 .map(|(x, y)| x.min(y))
                 .collect(),
-            Max(..) => x.into_par_iter()
+            Max(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in max").into_par_iter())
                 .map(|(x, y)| x.max(y))
                 .collect(),
-            LessThan(..) => x.into_par_iter()
+            LessThan(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in less than").into_par_iter())
                 .map(|(x, y)| {
                     if x < y {
@@ -340,7 +348,8 @@ impl Builder {
                     }
                 })
                 .collect(),
-            GreaterThan(..) => x.into_par_iter()
+            GreaterThan(..) => x
+                .into_par_iter()
                 .zip(
                     y.expect("failed to unwrap y in greater than")
                         .into_par_iter(),
@@ -353,7 +362,8 @@ impl Builder {
                     }
                 })
                 .collect(),
-            LessThanOrEqual(..) => x.into_par_iter()
+            LessThanOrEqual(..) => x
+                .into_par_iter()
                 .zip(
                     y.expect("failed to unwrap y in less than or equal")
                         .into_par_iter(),
@@ -366,7 +376,8 @@ impl Builder {
                     }
                 })
                 .collect(),
-            GreaterThanOrEqual(..) => x.into_par_iter()
+            GreaterThanOrEqual(..) => x
+                .into_par_iter()
                 .zip(
                     y.expect("failed to unwrap y in greater than or equal")
                         .into_par_iter(),
@@ -379,7 +390,8 @@ impl Builder {
                     }
                 })
                 .collect(),
-            Equal(..) => x.into_par_iter()
+            Equal(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in equal").into_par_iter())
                 .map(|(x, y)| {
                     if x == y {
@@ -389,7 +401,8 @@ impl Builder {
                     }
                 })
                 .collect(),
-            NotEqual(..) => x.into_par_iter()
+            NotEqual(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in not equal").into_par_iter())
                 .map(|(x, y)| {
                     if x != y {
@@ -399,11 +412,13 @@ impl Builder {
                     }
                 })
                 .collect(),
-            And(..) => x.into_par_iter()
+            And(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in and").into_par_iter())
                 .map(|(x, y)| x.min(y))
                 .collect(),
-            Or(..) => x.into_par_iter()
+            Or(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in or").into_par_iter())
                 .map(|(x, y)| x.max(y))
                 .collect(),
@@ -416,7 +431,8 @@ impl Builder {
             Logarithm(..) => x.into_par_iter().map(|x| x.ln()).collect(),
             Operand(..) => x,
             Ternary(..) => match dont_eval {
-                None => x.into_par_iter()
+                None => x
+                    .into_par_iter()
                     .zip(y.expect("failed to unwrap y in ternay").into_par_iter())
                     .zip(z.expect("failed to unwrap z in ternay").into_par_iter())
                     .map(|((x, y), z)| if x != Variable::Number(0.0) { y } else { z })
@@ -427,11 +443,13 @@ impl Builder {
                     _ => unreachable!(),
                 },
             },
-            Index(..) => x.into_par_iter()
+            Index(..) => x
+                .into_par_iter()
                 .zip(y.expect("failed to unwrap y in index").into_par_iter())
                 .map(|(x, y)| x[y].clone())
                 .collect(),
-            SubArray(..) => x.into_par_iter()
+            SubArray(..) => x
+                .into_par_iter()
                 .zip(
                     y.expect("failed to unwrap y in sub_array")
                         .into_par_iter()
@@ -441,7 +459,8 @@ impl Builder {
                 .collect(),
             Average(..) => x.into_par_iter().map(|x| x.average()).collect(),
             FFT(..) => {
-                let mut input: Vec<Complex<f64>> = x.iter()
+                let mut input: Vec<Complex<f64>> = x
+                    .iter()
                     .map(|sample| {
                         if let Variable::Number(s) = *sample {
                             Complex::new(s, 0.0)
@@ -470,7 +489,8 @@ impl Builder {
                             .take((buffer_size + window_size) / 2)
                             .map(|x| Variable::Number((x.re.powf(2.0) + x.im.powf(2.0)).powf(0.5)))
                             .collect();
-                        let max = bins.iter()
+                        let max = bins
+                            .iter()
                             .max_by(|a, b| a.partial_cmp(b).expect("NaN in fft"))
                             .expect("empty fft bins")
                             .clone();
@@ -482,7 +502,8 @@ impl Builder {
             Window(..) => vec![Variable::Array(x.clone()); buffer_size + window_size],
             Debug(..) => return Err(Error::new(ErrorSpec::DebugVar(x[0].clone()))),
             Print(..) => return Err(Error::new(ErrorSpec::DebugString(x[0].clone()))),
-            Concatenate(..) => x.into_par_iter()
+            Concatenate(..) => x
+                .into_par_iter()
                 .zip(
                     y.expect("unable to unwrap y in concatenate")
                         .into_par_iter(),
@@ -490,7 +511,8 @@ impl Builder {
                 .map(|(x, y)| x.cat(y))
                 .collect(),
             Length(..) => x.into_par_iter().map(|x| x.len()).collect(),
-            Find(..) => x.into_par_iter()
+            Find(..) => x
+                .into_par_iter()
                 .zip(y.expect("unable to unwrap y in find").into_par_iter())
                 .map(|(x, y)| x.find(y))
                 .collect(),
