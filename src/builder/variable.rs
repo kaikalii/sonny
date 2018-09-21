@@ -1,7 +1,4 @@
-use std::cmp::Ordering;
-use std::f64;
-use std::fmt;
-use std::ops;
+use std::{cmp::Ordering, f64, fmt, ops};
 
 // A universal variable type
 #[derive(Clone)]
@@ -357,7 +354,7 @@ impl Variable {
             },
         }
     }
-    pub fn len(self) -> Variable {
+    pub fn len(&self) -> Variable {
         use self::Variable::*;
         match self {
             Number(..) => Number(1.0),

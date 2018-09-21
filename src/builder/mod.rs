@@ -1,9 +1,7 @@
 pub mod evaluate;
 pub mod variable;
 
-use std::collections::HashMap;
-use std::f64;
-use std::fmt;
+use std::{collections::HashMap, f64, fmt};
 
 use error::{ErrorSpec::*, *};
 use lexer::CodeLocation;
@@ -376,7 +374,8 @@ impl Builder {
                         // e.g. "use gen::sine" allows the user to call "gen::sine" by
                         // simply writing "sine".
                         } else if name_in_scope.name.split("::").last().unwrap() == name_str {
-                            return self.chains
+                            return self
+                                .chains
                                 .get(&ChainName::Scoped(name_in_scope.name.clone()));
                         }
                     }

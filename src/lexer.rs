@@ -1,7 +1,4 @@
-use std::fmt;
-use std::fs::File;
-use std::io::Read;
-use std::path::PathBuf;
+use std::{fmt, fs::File, io::Read, path::PathBuf};
 
 use error::*;
 
