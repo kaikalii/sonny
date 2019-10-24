@@ -37,46 +37,56 @@ fn main() {
     // Parse command args for input and flags
     while let Some(ref arg) = args.next() {
         match arg.to_string().as_ref() {
-            "-r" | "--sample_rate" => if let Some(ref sr_str) = args.next() {
-                if let Ok(sr) = sr_str.parse() {
-                    sample_rate = sr;
-                } else {
-                    println!("Invalid sample rate.");
-                    return;
+            "-r" | "--sample_rate" => {
+                if let Some(ref sr_str) = args.next() {
+                    if let Ok(sr) = sr_str.parse() {
+                        sample_rate = sr;
+                    } else {
+                        println!("Invalid sample rate.");
+                        return;
+                    }
                 }
-            },
-            "-w" | "--window" => if let Some(ref w_str) = args.next() {
-                if let Ok(w) = w_str.parse() {
-                    window_size = w;
-                } else {
-                    println!("Invalid window size.");
-                    return;
+            }
+            "-w" | "--window" => {
+                if let Some(ref w_str) = args.next() {
+                    if let Ok(w) = w_str.parse() {
+                        window_size = w;
+                    } else {
+                        println!("Invalid window size.");
+                        return;
+                    }
                 }
-            },
-            "-b" | "--buffer" => if let Some(ref b_str) = args.next() {
-                if let Ok(b) = b_str.parse() {
-                    buffer_size = b;
-                } else {
-                    println!("Invalid buffer size.");
-                    return;
+            }
+            "-b" | "--buffer" => {
+                if let Some(ref b_str) = args.next() {
+                    if let Ok(b) = b_str.parse() {
+                        buffer_size = b;
+                    } else {
+                        println!("Invalid buffer size.");
+                        return;
+                    }
                 }
-            },
-            "-s" | "--start" => if let Some(ref s_str) = args.next() {
-                if let Ok(s) = s_str.parse() {
-                    start_time = s;
-                } else {
-                    println!("Invalid start time.");
-                    return;
+            }
+            "-s" | "--start" => {
+                if let Some(ref s_str) = args.next() {
+                    if let Ok(s) = s_str.parse() {
+                        start_time = s;
+                    } else {
+                        println!("Invalid start time.");
+                        return;
+                    }
                 }
-            },
-            "-e" | "--end" => if let Some(ref e_str) = args.next() {
-                if let Ok(e) = e_str.parse() {
-                    end_time = Some(e);
-                } else {
-                    println!("Invalid end_time.");
-                    return;
+            }
+            "-e" | "--end" => {
+                if let Some(ref e_str) = args.next() {
+                    if let Ok(e) = e_str.parse() {
+                        end_time = Some(e);
+                    } else {
+                        println!("Invalid end_time.");
+                        return;
+                    }
                 }
-            },
+            }
             "-p" | "--play" => play = true,
             "-h" | "--help" => {
                 println!(
@@ -109,7 +119,7 @@ Options:
             // start parsing the file
             Ok(parser) => match parser.parse(false) {
                 // make functions
-                Ok(mut builder) => {
+                Ok(builder) => {
                     // output sound
                     if let Err(error) = write(
                         &builder,
@@ -221,7 +231,8 @@ fn write(
             format!(
                 "{:5.2} s",
                 total_elapsed.as_secs() as f64 + f64::from(total_elapsed.subsec_nanos()) / 1e9
-            ).cyan()
+            )
+            .cyan()
         );
 
         // Write the audio file

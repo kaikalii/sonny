@@ -99,38 +99,43 @@ impl Builder {
                 self.evaluate_chain(id, args, time, window_size, buffer_size, sample_rate)?
             }
             // for Notes Properties...
-            Properties(ref id) => if let Some(chain) = self.find_chain(id) {
-                (0..(buffer_size + window_size))
-                    .collect::<Vec<usize>>()
-                    .into_par_iter()
-                    .map(|i| time + i as f64 / sample_rate)
-                    .map(|t| {
-                        // Ensure that this is in fact an OnlyNotes chain.
-                        // This check should always succeed because the parser
-                        // checks it during the building phase
-                        if let ChainLinks::OnlyNotes(..) = chain.links {
-                            // Try to find the note and return it if it is found
-                            if let Some(note) = chain.links.find_note(t, 0.0, &self) {
-                                Variable::Array(vec![
-                                    Variable::Array(
-                                        note.pitches.iter().map(|p| Variable::Number(*p)).collect(),
-                                    ),
-                                    Variable::Number(note.period.start),
-                                    Variable::Number(note.period.end),
-                                    Variable::Number(note.period.duration()),
-                                ])
-                            // return zero if time is after the period of the notes
+            Properties(ref id) => {
+                if let Some(chain) = self.find_chain(id) {
+                    (0..(buffer_size + window_size))
+                        .collect::<Vec<usize>>()
+                        .into_par_iter()
+                        .map(|i| time + i as f64 / sample_rate)
+                        .map(|t| {
+                            // Ensure that this is in fact an OnlyNotes chain.
+                            // This check should always succeed because the parser
+                            // checks it during the building phase
+                            if let ChainLinks::OnlyNotes(..) = chain.links {
+                                // Try to find the note and return it if it is found
+                                if let Some(note) = chain.links.find_note(t, 0.0, &self) {
+                                    Variable::Array(vec![
+                                        Variable::Array(
+                                            note.pitches
+                                                .iter()
+                                                .map(|p| Variable::Number(*p))
+                                                .collect(),
+                                        ),
+                                        Variable::Number(note.period.start),
+                                        Variable::Number(note.period.end),
+                                        Variable::Number(note.period.duration()),
+                                    ])
+                                // return zero if time is after the period of the notes
+                                } else {
+                                    Variable::Array(vec![Variable::Number(0.0); 4])
+                                }
                             } else {
-                                Variable::Number(0.0)
+                                panic!("Reference chain is not a note chain");
                             }
-                        } else {
-                            panic!("Reference chain is not a note chain");
-                        }
-                    })
-                    .collect()
-            } else {
-                panic!("Unknown id {:?}", id)
-            },
+                        })
+                        .collect()
+                } else {
+                    panic!("Unknown id {:?}", id)
+                }
+            }
             // For time, simply return the time
             Time => (0..(buffer_size + window_size))
                 .collect::<Vec<usize>>()
@@ -154,7 +159,8 @@ impl Builder {
                         name.clone(),
                         num,
                         args.len(),
-                    )).on_line(loc.clone()));
+                    ))
+                    .on_line(loc.clone()));
                 }
                 args[num - 1].clone()
             }
@@ -525,7 +531,7 @@ impl Builder {
                             .collect(),
                     ),
                     Variable::Array({
-                        let mut bins: Vec<Variable> = output
+                        let bins: Vec<Variable> = output
                             .into_iter()
                             .take((buffer_size + window_size) / 2)
                             .map(|x| Variable::Number((x.re.powf(2.0) + x.im.powf(2.0)).powf(0.5)))
