@@ -2,7 +2,9 @@
 
 *Sonny* is a functional programming language designed to create music and other sounds. It features a highly modular, fully programmable sound generation and transformation pipeline so that the user has complete control over what is generated.
 
-*Sonny* is currently in heavy development and any help in this endeavor is greatly appreciated! See the contribution guidelines below if you are interested.
+#### Important Note
+
+**Sonny is not currently undergoing any new development. I have found that there is a fundamental problem with using an interpretted language to process audio: it is far too slow. You may be interested in a more recent music programming project of mine: [Ryvm](https://github.com/kaikalii/ryvm).**
 
 # Features
 
@@ -16,7 +18,7 @@
 * Simple but effective module system for separating code into multiple files or libraries
 * Compiles to .WAV format
 
-### Planned Features
+### Originally Planned Features (likely never going to happen)
 
 * Output to other audio formats, namely .MP3 and .OGG
 * Playback and manipulation of external audio samples
