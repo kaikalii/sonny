@@ -117,9 +117,18 @@ impl Parser {
                                 .expect("Unable to get sonny executable parent"),
                         ),
                         direction: Search::ParentsThenKids(3, 3),
-                    }.for_folder("std")
-                        .expect("Unable to find standard library folder")
-                        .join(filename)
+                    }
+                    .for_folder("std")
+                    .or_else(|_| {
+                        SearchFolder {
+                            start: env::current_dir()
+                                .expect("Unable to determine current directory"),
+                            direction: Search::ParentsThenKids(3, 3),
+                        }
+                        .for_folder("std")
+                    })
+                    .expect("Unable to find standard library folder")
+                    .join(filename)
                 } else {
                     PathBuf::from(&self.main_file_name)
                         .parent()
@@ -133,7 +142,8 @@ impl Parser {
                 self.builder = Parser::new(
                     &path.to_str().expect("unable to convert path to string"),
                     self.builder,
-                )?.parse(true)?;
+                )?
+                .parse(true)?;
 
                 // Put back the popped file scope.
                 self.builder.names_in_scope.push(temp_scope);
@@ -188,12 +198,13 @@ impl Parser {
     fn mat(&mut self, t: TokenType) -> SonnyResult<()> {
         if self.look.0 == t {
             // println!("Expected {:?}, found {:?}", t, self.look.1.clone());
-            Ok(if self.peeked {
+            if self.peeked {
                 self.peeked = false;
                 self.look = self.next.clone();
             } else {
                 self.look = self.lexer.lex();
-            })
+            }
+            Ok(())
         } else {
             Err(
                 Error::new(ErrorSpec::ExpectedFound(Left(t), self.look.clone()))
@@ -214,7 +225,7 @@ impl Parser {
                 self.look = self.lexer.lex();
             }
             // This is probably not where this paren check should go.
-            Ok(if s == "(" {
+            if s == "(" {
                 self.paren_level += 1;
             } else if s == ")" {
                 if self.paren_level > 0 {
@@ -223,12 +234,14 @@ impl Parser {
                     return Err(Error::new(ErrorSpec::CloseDelimeter(")".to_string()))
                         .on_line(self.lexer.loc()));
                 }
-            })
+            }
+            Ok(())
         } else {
             Err(Error::new(ErrorSpec::ExpectedFound(
                 Right(s.to_string()),
                 self.look.clone(),
-            )).on_line(self.lexer.loc()))
+            ))
+            .on_line(self.lexer.loc()))
         }
     }
     // Look at the token after the next one without consuming
@@ -267,7 +280,7 @@ impl Parser {
         }
         Ok(num_str
             .parse::<f64>()
-            .expect(&format!("Unable to parse real num string: {}", num_str)))
+            .unwrap_or_else(|_| panic!("Unable to parse real num string: {}", num_str)))
     }
     // Convert a string representing a pitch into a number
     fn string_to_pitch(&mut self, s: &str) -> f64 {
@@ -371,18 +384,22 @@ impl Parser {
     fn duration(&mut self) -> SonnyResult<f64> {
         Ok(if self.look.0 == Num {
             if self.peek().1 == "/" {
-                let num1 = self.look.1.parse::<f64>().expect(&format!(
-                    "Unable to parse duration num {:?} on line {:?}",
-                    self.look.1,
-                    self.lexer.loc(),
-                ));
+                let num1 = self.look.1.parse::<f64>().unwrap_or_else(|_| {
+                    panic!(
+                        "Unable to parse duration num {:?} on line {:?}",
+                        self.look.1,
+                        self.lexer.loc()
+                    )
+                });
                 self.mat(Num)?;
                 self.mas("/")?;
-                let num2 = self.look.1.parse::<f64>().expect(&format!(
-                    "Unable to parse duration num {:?} on line {:?}",
-                    self.look.1,
-                    self.lexer.loc(),
-                ));
+                let num2 = self.look.1.parse::<f64>().unwrap_or_else(|_| {
+                    panic!(
+                        "Unable to parse duration num {:?} on line {:?}",
+                        self.look.1,
+                        self.lexer.loc()
+                    )
+                });
                 self.mat(Num)?;
                 (num1 / num2) / (self.builder.tempo / 60.0) * 4.0
             } else {
@@ -425,7 +442,9 @@ impl Parser {
                         .on_line(self.lexer.loc()));
                 }
             } else {
-                return Err(Error::new(CantFindChain(possible_chain_name)).on_line(self.lexer.loc()));
+                return Err(
+                    Error::new(CantFindChain(possible_chain_name)).on_line(self.lexer.loc())
+                );
             }
         } else {
             self.duration()?
@@ -462,7 +481,9 @@ impl Parser {
                     x
                 }
             } else {
-                return Err(Error::new(InvalidBackLink(self.look.clone())).on_line(self.lexer.loc()));
+                return Err(
+                    Error::new(InvalidBackLink(self.look.clone())).on_line(self.lexer.loc())
+                );
             },
             self.lexer.loc(),
         );
@@ -887,7 +908,7 @@ impl Parser {
             self.mas("?")?;
             expr = Expression(Operation::Ternary(
                 Operand::Expression(Box::new(expr)),
-                Operand::Expression({ Box::new(self.exp_tern()?) }),
+                Operand::Expression(Box::new(self.exp_tern()?)),
                 Operand::Expression({
                     self.mas(":")?;
                     Box::new(self.exp_tern()?)
@@ -902,20 +923,19 @@ impl Parser {
     }
     // Match a chain link
     fn link(&mut self) -> SonnyResult<()> {
-        Ok(
-            // Check for notes
-            if self.look.1 == "{" {
-                self.mas("{")?;
-                let notes = self.notes()?;
-                self.mas("}")?;
-                self.builder
-                    .new_expression(Expression(Operation::Operand(Operand::Notes(notes))))
-            // It's an expression otherwise
-            } else {
-                let expr = self.expression()?;
-                self.builder.new_expression(expr);
-            },
-        )
+        // Check for notes
+        if self.look.1 == "{" {
+            self.mas("{")?;
+            let notes = self.notes()?;
+            self.mas("}")?;
+            self.builder
+                .new_expression(Expression(Operation::Operand(Operand::Notes(notes))))
+        // It's an expression otherwise
+        } else {
+            let expr = self.expression()?;
+            self.builder.new_expression(expr);
+        }
+        Ok(())
     }
     // Match the body of a chain
     fn chain(&mut self) -> SonnyResult<()> {
@@ -935,7 +955,8 @@ impl Parser {
                 } else {
                     return Err(Error::new(MultipleOutChains(
                         self.builder.out_declared.clone().unwrap(),
-                    )).on_line(self.lexer.loc()));
+                    ))
+                    .on_line(self.lexer.loc()));
                 }
             } else {
                 self.link()?;

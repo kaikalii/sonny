@@ -139,16 +139,6 @@ pub enum ChainName {
     Anonymous(usize),
 }
 
-impl ChainName {
-    // Convert the ChainName to a string for output file names
-    pub fn to_string(&self) -> String {
-        match *self {
-            ChainName::Scoped(ref s) => s.clone(),
-            ChainName::Anonymous(i) => format!("anon{:04}", i),
-        }
-    }
-}
-
 // Format the ChainName for error messages
 impl fmt::Display for ChainName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -275,7 +265,7 @@ impl Builder {
         };
         // Make sure another chain does not already have that name
         if self.find_chain(&return_name).is_some() {
-            return Err(Error::new(ChainRedeclaration(return_name.clone())));
+            return Err(Error::new(ChainRedeclaration(return_name)));
         }
         // Push the chain onto the current chains
         self.curr_chains.push(Chain {

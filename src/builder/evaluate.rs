@@ -80,6 +80,7 @@ impl ChainLinks {
 
 impl Builder {
     // Evalutates an oeprand with the given arguments and depth
+    #[allow(clippy::too_many_arguments)]
     fn evaluate_operand(
         &self,
         operand: &Operand,
@@ -154,7 +155,7 @@ impl Builder {
                 .collect(),
             // For Backlinks, reference the arguments passed
             BackLink(num, ref loc) => {
-                if num - 1 >= args.len() {
+                if num > args.len() {
                     return Err(Error::new(ErrorSpec::UnsatisfiedBacklink(
                         name.clone(),
                         num,
@@ -179,7 +180,7 @@ impl Builder {
                             break;
                         }
                     }
-                    Variable::Array(result.into_iter().map(|p| Variable::Number(p)).collect())
+                    Variable::Array(result.into_iter().map(Variable::Number).collect())
                 })
                 .collect(),
             // Evaluate expressions
@@ -224,6 +225,7 @@ impl Builder {
     }
 
     // Evaluate an expression with the given arguments and time
+    #[allow(clippy::too_many_arguments)]
     fn evaluate_expression(
         &self,
         expression: &Expression,
@@ -544,9 +546,9 @@ impl Builder {
                         bins.into_iter().map(|x| x / max.clone()).collect()
                     }),
                 ]);
-                vec![fft_result.clone(); buffer_size + window_size]
+                vec![fft_result; buffer_size + window_size]
             }
-            Window(..) => vec![Variable::Array(x.clone()); buffer_size + window_size],
+            Window(..) => vec![Variable::Array(x); buffer_size + window_size],
             Debug(..) => return Err(Error::new(ErrorSpec::DebugVar(x[0].clone()))),
             Print(..) => return Err(Error::new(ErrorSpec::DebugString(x[0].clone()))),
             Concatenate(..) => x
@@ -616,9 +618,7 @@ impl Builder {
                             chain
                                 .links
                                 .find_note(t, 0.0, &self)
-                                .map(|n| {
-                                    n.pitches.into_iter().map(|p| Variable::Number(p)).collect()
-                                })
+                                .map(|n| n.pitches.into_iter().map(Variable::Number).collect())
                                 .unwrap_or_else(Vec::new),
                         )
                     })

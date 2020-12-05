@@ -2,7 +2,7 @@ use std::{fmt, fs::File, io::Read, path::PathBuf};
 
 use error::*;
 
-static KEYWORDS: &[&'static str] = &[
+static KEYWORDS: &[&str] = &[
     "time",
     "sin",
     "cos",
@@ -234,24 +234,28 @@ impl Lexer {
                 token.push(c);
                 match c {
                     '(' | ')' | '{' | '}' | '[' | ']' | ',' => return Token(Delimeter, token),
-                    '|' => if let Some(c) = self.get_char() {
-                        if c == '|' {
-                            token.push(c);
-                            return Token(Operator, token);
-                        } else {
-                            self.put_back();
-                            return Token(Delimeter, token);
+                    '|' => {
+                        if let Some(c) = self.get_char() {
+                            if c == '|' {
+                                token.push(c);
+                                return Token(Operator, token);
+                            } else {
+                                self.put_back();
+                                return Token(Delimeter, token);
+                            }
                         }
-                    },
-                    '&' => if let Some(c) = self.get_char() {
-                        if c == '&' {
-                            token.push(c);
-                            return Token(Operator, token);
-                        } else {
-                            self.put_back();
-                            return Token(Unknown, token);
+                    }
+                    '&' => {
+                        if let Some(c) = self.get_char() {
+                            if c == '&' {
+                                token.push(c);
+                                return Token(Operator, token);
+                            } else {
+                                self.put_back();
+                                return Token(Unknown, token);
+                            }
                         }
-                    },
+                    }
                     ':' => {
                         if let Some(c) = self.get_char() {
                             if c == ':' {
@@ -262,86 +266,100 @@ impl Lexer {
                             return Token(Delimeter, token);
                         }
                     }
-                    '=' => if let Some(c) = self.get_char() {
-                        if c == '=' {
-                            token.push(c);
-                            return Token(Operator, token);
-                        } else {
-                            self.put_back();
-                            return Token(Unknown, token);
+                    '=' => {
+                        if let Some(c) = self.get_char() {
+                            if c == '=' {
+                                token.push(c);
+                                return Token(Operator, token);
+                            } else {
+                                self.put_back();
+                                return Token(Unknown, token);
+                            }
                         }
-                    },
-                    '!' => if let Some(c) = self.get_char() {
-                        if c == '=' {
-                            token.push(c);
-                            return Token(Operator, token);
-                        } else {
-                            self.put_back();
-                            return Token(BackLink, token);
+                    }
+                    '!' => {
+                        if let Some(c) = self.get_char() {
+                            if c == '=' {
+                                token.push(c);
+                                return Token(Operator, token);
+                            } else {
+                                self.put_back();
+                                return Token(BackLink, token);
+                            }
                         }
-                    },
-                    '<' => if let Some(c) = self.get_char() {
-                        if c == '=' {
-                            token.push(c);
-                            return Token(Operator, token);
-                        } else {
-                            self.put_back();
-                            return Token(Operator, token);
+                    }
+                    '<' => {
+                        if let Some(c) = self.get_char() {
+                            if c == '=' {
+                                token.push(c);
+                                return Token(Operator, token);
+                            } else {
+                                self.put_back();
+                                return Token(Operator, token);
+                            }
                         }
-                    },
-                    '>' => if let Some(c) = self.get_char() {
-                        if c == '=' {
-                            token.push(c);
-                            return Token(Operator, token);
-                        } else {
-                            self.put_back();
-                            return Token(Operator, token);
+                    }
+                    '>' => {
+                        if let Some(c) = self.get_char() {
+                            if c == '=' {
+                                token.push(c);
+                                return Token(Operator, token);
+                            } else {
+                                self.put_back();
+                                return Token(Operator, token);
+                            }
                         }
-                    },
-                    '.' => if let Some(c) = self.get_char() {
-                        if c == '.' {
-                            token.push(c);
-                            return Token(Dot, token);
-                        } else {
-                            self.put_back();
-                            return Token(Dot, token);
+                    }
+                    '.' => {
+                        if let Some(c) = self.get_char() {
+                            if c == '.' {
+                                token.push(c);
+                                return Token(Dot, token);
+                            } else {
+                                self.put_back();
+                                return Token(Dot, token);
+                            }
                         }
-                    },
+                    }
                     '_' => return Token(Rest, token),
                     '+' | '*' | '%' | '^' | '?' | '/' | '~' => return Token(Operator, token),
-                    '-' => if let Some(c) = self.get_char() {
-                        if c == '>' {
-                            token.push(c);
-                            return Token(Delimeter, token);
-                        } else {
-                            self.put_back();
-                            return Token(Operator, token);
+                    '-' => {
+                        if let Some(c) = self.get_char() {
+                            if c == '>' {
+                                token.push(c);
+                                return Token(Delimeter, token);
+                            } else {
+                                self.put_back();
+                                return Token(Operator, token);
+                            }
                         }
-                    },
-                    '#' => if let Some(c) = self.get_char() {
-                        if c == '/' {
-                            while let Some(c) = self.get_char() {
-                                if c == '\n' {
-                                    self.loc.line += 1;
-                                    self.loc.column = 0;
-                                } else if c == '/' {
-                                    if let Some(c) = self.get_char() {
-                                        if c == '#' {
-                                            break;
+                    }
+                    '#' => {
+                        if let Some(c) = self.get_char() {
+                            if c == '/' {
+                                while let Some(c) = self.get_char() {
+                                    if c == '\n' {
+                                        self.loc.line += 1;
+                                        self.loc.column = 0;
+                                    } else if c == '/' {
+                                        if let Some(c) = self.get_char() {
+                                            if c == '#' {
+                                                break;
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        } else {
-                            while let Some(c) = self.get_char() {
-                                if c == '\n' {
-                                    self.loc.line += 1;
-                                    self.loc.column = 0;
-                                    break;
+                            } else {
+                                while let Some(c) = self.get_char() {
+                                    if c == '\n' {
+                                        self.loc.line += 1;
+                                        self.loc.column = 0;
+                                        break;
+                                    }
                                 }
                             }
                         }
-                    },
+                    }
                     '"' => {
                         token = String::new();
                         let mut escape = false;
